@@ -2,6 +2,7 @@
 //  NumKit.h
 //
 //  Created by Koichi Oshio on 2-26-2013.
+//	created local git repository on 5-29-2018
 //
 //	=== plans (linear) ===
 //	use BLAS / LAPACK
