@@ -1,0 +1,294 @@
+TStatCalc
+v5
+r1
+cCheck dependencies
+cProcessInfoPlistFile /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Info.plist StatCalc/StatCalc-Info.plist
+cProcessPCH /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch.pth StatCalc/StatCalc-Prefix.pch normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler
+cCompileC build/StatCalc.build/Objects-normal/x86_64/main.o /Users/oshio/Projects6/NumKit/StatCalc/main.m normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler
+cCompileC build/StatCalc.build/Objects-normal/x86_64/AppDelegate.o /Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler
+cLd /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/MacOS/StatCalc normal x86_64
+
+N/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk
+c0000000051C156F000000000000000AA
+t1371625200
+s170
+
+N/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk/System/Library/Frameworks/Cocoa.framework/Cocoa
+c00000000517F80EE00000000000025C8
+t1367310574
+s9672
+
+N/Users/oshio/Projects6/NumKit/NumKit/NumKit.h
+c0000000052BBC7F90000000000000900
+t1388038137
+s2304
+
+N/Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.h
+c0000000052BA9BAD0000000000000321
+t1387961261
+s801
+
+N/Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m
+c0000000052BBC779000000000000083D
+t1388038009
+s2109
+
+N/Users/oshio/Projects6/NumKit/StatCalc/StatCalc-Prefix.pch
+c0000000052BA8DE30000000000000093
+t1387957731
+s147
+
+N/Users/oshio/Projects6/NumKit/StatCalc/en.lproj/Credits.rtf
+c0000000052BA8DE300000000000001B4
+t1387957731
+s436
+
+N/Users/oshio/Projects6/NumKit/StatCalc/en.lproj/InfoPlist.strings
+c0000000052BA8DE3000000000000002D
+t1387957731
+s45
+
+N/Users/oshio/Projects6/NumKit/StatCalc/en.lproj/MainMenu.xib
+c0000000052BA9D2D000000000003F236
+t1387961645
+s258614
+
+N/Users/oshio/Projects6/NumKit/StatCalc/main.m
+c0000000052BA8DE300000000000000C5
+t1387957731
+s197
+
+N/Users/oshio/Projects6/NumKit/build/NumKit.framework
+c0000000052BBC80200000000000000CC
+t1388038146
+s204
+
+N/Users/oshio/Projects6/NumKit/build/NumKit.framework/NumKit
+c0000000052BBC802000000000000A49C
+t1388038146
+s42140
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.app
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.app.dSYM
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Info.plist
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/MacOS/StatCalc
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/PkgInfo
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/NumKit.framework
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/en.lproj/Credits.rtf
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/en.lproj/InfoPlist.strings
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/en.lproj/MainMenu.nib
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/AppDelegate.o
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/StatCalc.LinkFileList
+c0000000052BBC80200000000000000A7
+t1388038146
+s167
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/main.o
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.build/StaticAnalyzer/NumKit/StatCalc/normal/x86_64/AppDelegate.plist
+t2
+s0
+
+N/Users/oshio/Projects6/NumKit/build/StatCalc.build/StaticAnalyzer/NumKit/StatCalc/normal/x86_64/main.plist
+t2
+s0
+
+N/var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-bckpooqkixfyziflorkuvpdkiusx/StatCalc-Prefix.pch.pth
+t2
+s0
+
+N/var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-dcfbgsrltlcajocqehwntvbsujqw/StatCalc-Prefix.pch.pth
+t2
+s0
+
+N/var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch.pth
+t2
+s0
+
+N/var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-evudvzkmycpparfbxzpjhoyjrvmk/StatCalc-Prefix.pch.pth
+t2
+s0
+
+NStatCalc/StatCalc-Info.plist
+c0000000052BA8DE200000000000003DB
+t1387957730
+s987
+
+CAnalyze /Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m
+r0
+
+CAnalyze /Users/oshio/Projects6/NumKit/StatCalc/main.m
+r0
+
+CBuild AST from /Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m
+r0
+
+CBuild AST from /Users/oshio/Projects6/NumKit/StatCalc/main.m
+r0
+
+CCheck dependencies
+r0
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection18"Check dependencies4cc76882ff6bb841^6d717982ff6bb841^---0#1#0#--18"Check dependencies36"E9D83E14-DEA2-4889-8940-48A7B453E3CC-
+
+CCompileC build/StatCalc.build/Objects-normal/x86_64/AppDelegate.o /Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler
+s409730947.569700
+e409730947.671054
+r1
+xCompileC
+xbuild/StatCalc.build/Objects-normal/x86_64/AppDelegate.o
+x/Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m
+xnormal
+xx86_64
+xobjective-c
+xcom.apple.compilers.llvm.clang.1_0.compiler
+o/Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m:43:13: warning: implicit declaration of function 'Num_ttab' is invalid in C99 [-Wimplicit-function-declaration]
+o        if (Num_ttab(t, df) < 0.05) {
+o            ^
+o1 warning generated.
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection60"Compile /Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m24099283ff6bb841^9fccab83ff6bb841^-238"/Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m:43:13: warning: implicit declaration of function 'Num_ttab' is invalid in C99 [-Wimplicit-function-declaration]        if (Num_ttab(t, df) < 0.05) {            ^1 warning generated.1(36%IDEClangDiagnosticActivityLogMessage2@61"Implicit declaration of function 'Num_ttab' is invalid in C99-409730947#18446744073709551615#0#-1#27"com.apple.dt.IDE.diagnostic23%DVTTextDocumentLocation3@68"file://localhost/Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m0000000000000000^42#12#42#12#996#0#14"Semantic Issue--0#0#0#-19%DVTDocumentLocation4@68"file://localhost/Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m0000000000000000^2666"CompileC build/StatCalc.build/Objects-normal/x86_64/AppDelegate.o StatCalc/AppDelegate.m normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler    cd /Users/oshio/Projects6/NumKit    setenv LANG en_US.US-ASCII    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -x objective-c -arch x86_64 -fmessage-length=0 -std=gnu99 -fobjc-arc -Wno-trigraphs -fpascal-strings -O0 -Wno-missing-field-initializers -Wno-missing-prototypes -Wreturn-type -Wno-implicit-atomic-properties -Wno-receiver-is-weak -Wduplicate-method-match -Wformat -Wno-missing-braces -Wparentheses -Wswitch -Wno-unused-function -Wno-unused-label -Wno-unused-parameter -Wunused-variable -Wunused-value -Wempty-body -Wuninitialized -Wno-unknown-pragmas -Wno-shadow -Wno-four-char-constants -Wno-conversion -Wconstant-conversion -Wint-conversion -Wenum-conversion -Wshorten-64-to-32 -Wpointer-sign -Wno-newline-eof -Wno-selector -Wno-strict-selector-match -Wno-undeclared-selector -Wno-deprecated-implementations -DDEBUG=1 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -fasm-blocks -fstrict-aliasing -Wprotocol -Wdeprecated-declarations -mmacosx-version-min=10.7 -g -Wno-sign-conversion -iquote /Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-generated-files.hmap -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-own-target-headers.hmap -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-all-target-headers.hmap -iquote /Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-project-headers.hmap -I/Users/oshio/Projects6/NumKit/build/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/DerivedSources/x86_64 -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/DerivedSources -F/Users/oshio/Projects6/NumKit/build -include /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch -MMD -MT dependencies -MF /Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/AppDelegate.d --serialize-diagnostics /Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/AppDelegate.dia -c /Users/oshio/Projects6/NumKit/StatCalc/AppDelegate.m -o /Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/AppDelegate.o36"74A06357-00BF-4573-A1CF-F3E540D6E966-
+
+CCompileC build/StatCalc.build/Objects-normal/x86_64/main.o /Users/oshio/Projects6/NumKit/StatCalc/main.m normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler
+s409730947.569684
+e409730947.677606
+r1
+xCompileC
+xbuild/StatCalc.build/Objects-normal/x86_64/main.o
+x/Users/oshio/Projects6/NumKit/StatCalc/main.m
+xnormal
+xx86_64
+xobjective-c
+xcom.apple.compilers.llvm.clang.1_0.compiler
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection53"Compile /Users/oshio/Projects6/NumKit/StatCalc/main.mb5fb9183ff6bb841^8577ad83ff6bb841^---0#0#0#-19%DVTDocumentLocation2@61"file://localhost/Users/oshio/Projects6/NumKit/StatCalc/main.m0000000000000000^2624"CompileC build/StatCalc.build/Objects-normal/x86_64/main.o StatCalc/main.m normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler    cd /Users/oshio/Projects6/NumKit    setenv LANG en_US.US-ASCII    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -x objective-c -arch x86_64 -fmessage-length=0 -std=gnu99 -fobjc-arc -Wno-trigraphs -fpascal-strings -O0 -Wno-missing-field-initializers -Wno-missing-prototypes -Wreturn-type -Wno-implicit-atomic-properties -Wno-receiver-is-weak -Wduplicate-method-match -Wformat -Wno-missing-braces -Wparentheses -Wswitch -Wno-unused-function -Wno-unused-label -Wno-unused-parameter -Wunused-variable -Wunused-value -Wempty-body -Wuninitialized -Wno-unknown-pragmas -Wno-shadow -Wno-four-char-constants -Wno-conversion -Wconstant-conversion -Wint-conversion -Wenum-conversion -Wshorten-64-to-32 -Wpointer-sign -Wno-newline-eof -Wno-selector -Wno-strict-selector-match -Wno-undeclared-selector -Wno-deprecated-implementations -DDEBUG=1 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -fasm-blocks -fstrict-aliasing -Wprotocol -Wdeprecated-declarations -mmacosx-version-min=10.7 -g -Wno-sign-conversion -iquote /Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-generated-files.hmap -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-own-target-headers.hmap -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-all-target-headers.hmap -iquote /Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-project-headers.hmap -I/Users/oshio/Projects6/NumKit/build/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/DerivedSources/x86_64 -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/DerivedSources -F/Users/oshio/Projects6/NumKit/build -include /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch -MMD -MT dependencies -MF /Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/main.d --serialize-diagnostics /Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/main.dia -c /Users/oshio/Projects6/NumKit/StatCalc/main.m -o /Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/main.o36"93E15F37-A019-42C3-8061-F486C957B70A-
+
+CCompileXIB /Users/oshio/Projects6/NumKit/StatCalc/en.lproj/MainMenu.xib
+s409654447.745884
+e409654451.184441
+r1
+xCompileXIB
+x/Users/oshio/Projects6/NumKit/StatCalc/en.lproj/MainMenu.xib
+o/* com.apple.ibtool.document.warnings */
+o/Users/oshio/Projects6/NumKit/StatCalc/en.lproj/MainMenu.xib:371: warning: Maximum size is smaller than its content rectangle's size (May result in unexpected runtime behavior) [9]
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection70"Compiling /Users/oshio/Projects6/NumKit/StatCalc/en.lproj/MainMenu.xib5b0bbfafd46ab841^473a2fb3d46ab841^-216"/* com.apple.ibtool.document.warnings *//Users/oshio/Projects6/NumKit/StatCalc/en.lproj/MainMenu.xib:371: warning: Maximum size is smaller than its content rectangle's size (May result in unexpected runtime behavior)1(21%IDEActivityLogMessage2@101"Maximum size is smaller than its content rectangle's size (May result in unexpected runtime behavior)57"Maximum size is smaller than its content rectangle's size409654451#18446744073709551615#0#-1#-23%DVTTextDocumentLocation3@76"file://localhost/Users/oshio/Projects6/NumKit/StatCalc/en.lproj/MainMenu.xib0000000000000000^370#18446744073709551615#370#18446744073709551615#18446744073709551615#0#25"Unsupported Configuration--0#0#0#-19%DVTDocumentLocation4@76"file://localhost/Users/oshio/Projects6/NumKit/StatCalc/en.lproj/MainMenu.xib0000000000000000^563"CompileXIB StatCalc/en.lproj/MainMenu.xib    cd /Users/oshio/Projects6/NumKit    setenv XCODE_DEVELOPER_USR_PATH /Applications/Xcode.app/Contents/Developer/usr/bin/..    /Applications/Xcode.app/Contents/Developer/usr/bin/ibtool --errors --warnings --notices --output-format human-readable-text --compile /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/en.lproj/MainMenu.nib /Users/oshio/Projects6/NumKit/StatCalc/en.lproj/MainMenu.xib --sdk /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk36"BA9AFBA3-78AB-4363-8BF2-1C64C4C00FE9-
+
+CCopyStringsFile /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/en.lproj/InfoPlist.strings StatCalc/en.lproj/InfoPlist.strings
+s409651932.903858
+e409651932.908293
+r1
+xCopyStringsFile
+x/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/en.lproj/InfoPlist.strings
+xStatCalc/en.lproj/InfoPlist.strings
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection40"Copy StatCalc/en.lproj/InfoPlist.strings008ce7dcca6ab841^f984e8dcca6ab841^---0#0#0#-19%DVTDocumentLocation2@81"file://localhost/Users/oshio/Projects6/NumKit/StatCalc/en.lproj/InfoPlist.strings0000000000000000^360"CopyStringsFile build/StatCalc.app/Contents/Resources/en.lproj/InfoPlist.strings StatCalc/en.lproj/InfoPlist.strings    cd /Users/oshio/Projects6/NumKit    builtin-copyStrings --validate --inputencoding utf-8 --outputencoding UTF-16 --outdir /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/en.lproj -- StatCalc/en.lproj/InfoPlist.strings36"C72B3654-6450-42E6-AF19-4C1BFB6B271D-
+
+CCpResource StatCalc/en.lproj/Credits.rtf build/StatCalc.app/Contents/Resources/en.lproj/Credits.rtf
+s409651932.903907
+e409651932.910133
+r1
+xCpResource
+xStatCalc/en.lproj/Credits.rtf
+xbuild/StatCalc.app/Contents/Resources/en.lproj/Credits.rtf
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection63"Copy build/StatCalc.app/Contents/Resources/en.lproj/Credits.rtf588fe7dcca6ab841^7afee8dcca6ab841^---0#0#0#-19%DVTDocumentLocation2@104"file://localhost/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/en.lproj/Credits.rtf000000000080d041^386"CpResource StatCalc/en.lproj/Credits.rtf build/StatCalc.app/Contents/Resources/en.lproj/Credits.rtf    cd /Users/oshio/Projects6/NumKit    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/oshio/Projects6/NumKit/StatCalc/en.lproj/Credits.rtf /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/en.lproj36"597BC2AE-03CE-4182-8CDE-0BDC42971E3F-
+
+CCpResource build/NumKit.framework build/StatCalc.app/Contents/Resources/NumKit.framework
+s409656466.186732
+e409656466.253126
+r1
+xCpResource
+xbuild/NumKit.framework
+xbuild/StatCalc.app/Contents/Resources/NumKit.framework
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection59"Copy build/StatCalc.app/Contents/Resources/NumKit.framework58e42f92dc6ab841^75cd4092dc6ab841^---0#0#0#-19%DVTDocumentLocation2@101"file://localhost/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources/NumKit.framework/0000000000000000^359"CpResource build/NumKit.framework build/StatCalc.app/Contents/Resources/NumKit.framework    cd /Users/oshio/Projects6/NumKit    builtin-copy -exclude .DS_Store -exclude CVS -exclude .svn -exclude .git -exclude .hg -resolve-src-symlinks /Users/oshio/Projects6/NumKit/build/NumKit.framework /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Resources36"7E3E45AC-BE45-4638-ADFB-2A68C57FAD61-
+
+CGenerateDSYMFile /Users/oshio/Projects6/NumKit/build/StatCalc.app.dSYM /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/MacOS/StatCalc
+r0
+
+CLd /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/MacOS/StatCalc normal x86_64
+s409730947.684428
+e409730947.747671
+r0
+xLd
+x/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/MacOS/StatCalc
+xnormal
+xx86_64
+oUndefined symbols for architecture x86_64:
+o  "_Num_ttab", referenced from:
+o      -[AppDelegate updateT:] in AppDelegate.o
+old: symbol(s) not found for architecture x86_64
+oclang: error: linker command failed with exit code 1 (use -v to see invocation)
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection77"Link /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/MacOS/StatCalcbd51af83ff6bb841^8466bf83ff6bb841^-250"Undefined symbols for architecture x86_64:  "_Num_ttab", referenced from:      -[AppDelegate updateT:] in AppDelegate.old: symbol(s) not found for architecture x86_64clang: error: linker command failed with exit code 1 (use -v to see invocation)4(21%IDEActivityLogMessage2@29""_Num_ttab", referenced from:-409730947#43#32#-2#-23%DVTTextDocumentLocation3@-0000000000000000^18446744073709551615#18446744073709551615#18446744073709551615#18446744073709551615#18446744073709551615#0#30"Apple Mach-O Linker (ld) Error--2@40"-[AppDelegate updateT:] in AppDelegate.o-409730947#75#47#-0#-3@-0000000000000000^18446744073709551615#18446744073709551615#18446744073709551615#18446744073709551615#18446744073709551615#0#31"Apple Mach-O Linker (ld) Notice--2@43"Symbol(s) not found for architecture x86_64-409730947#122#48#-0#-3@-0000000000000000^18446744073709551615#18446744073709551615#18446744073709551615#18446744073709551615#18446744073709551615#0#31"Apple Mach-O Linker (ld) Notice--2@65"Linker command failed with exit code 1 (use -v to see invocation)-409730947#170#80#-2#-3@-0000000000000000^18446744073709551615#18446744073709551615#18446744073709551615#18446744073709551615#18446744073709551615#0#30"Apple Mach-O Linker (ld) Error--0#0#0#--706"Ld build/StatCalc.app/Contents/MacOS/StatCalc normal x86_64    cd /Users/oshio/Projects6/NumKit    setenv MACOSX_DEPLOYMENT_TARGET 10.7    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -arch x86_64 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -L/Users/oshio/Projects6/NumKit/build -F/Users/oshio/Projects6/NumKit/build -filelist /Users/oshio/Projects6/NumKit/build/StatCalc.build/Objects-normal/x86_64/StatCalc.LinkFileList -mmacosx-version-min=10.7 -fobjc-arc -fobjc-link-runtime -framework NumKit -framework Cocoa -o /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/MacOS/StatCalc36"E8A32C72-9940-4676-AA61-5BB8E24C2CB1-
+
+CProcessInfoPlistFile /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Info.plist StatCalc/StatCalc-Info.plist
+s409730946.437502
+e409730946.452177
+r1
+xProcessInfoPlistFile
+x/Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Info.plist
+xStatCalc/StatCalc-Info.plist
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection36"Process StatCalc/StatCalc-Info.plist74977082ff6bb841^0c787982ff6bb841^---0#0#0#-19%DVTDocumentLocation2@74"file://localhost/Users/oshio/Projects6/NumKit/StatCalc/StatCalc-Info.plist0000000000000000^372"ProcessInfoPlistFile build/StatCalc.app/Contents/Info.plist StatCalc/StatCalc-Info.plist    cd /Users/oshio/Projects6/NumKit    builtin-infoPlistUtility StatCalc/StatCalc-Info.plist -genpkginfo /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/PkgInfo -expandbuildsettings -platform macosx -o /Users/oshio/Projects6/NumKit/build/StatCalc.app/Contents/Info.plist36"71BAC532-ED6E-4069-ACBA-0AD79E1D0E6F-
+
+CProcessPCH /Users/oshio/Library/Developer/Xcode/DerivedData/NumKit-dszajqlhvgyngwaoerzlaidocqaq/Index/PrecompiledHeaders/StatCalc-Prefix-btngnihceahxshdwzemyrstwninh_ast/StatCalc-Prefix.pch.pth StatCalc/StatCalc-Prefix.pch normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.astbuilder
+r0
+
+CProcessPCH /Users/oshio/Library/Developer/Xcode/DerivedData/NumKit-dszajqlhvgyngwaoerzlaidocqaq/Index/PrecompiledHeaders/StatCalc-Prefix-dpwdcmjfdfcfveaejwdywulalaux_ast/StatCalc-Prefix.pch.pth StatCalc/StatCalc-Prefix.pch normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.astbuilder
+r0
+
+CProcessPCH /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-bckpooqkixfyziflorkuvpdkiusx/StatCalc-Prefix.pch.pth StatCalc/StatCalc-Prefix.pch normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler
+r0
+
+CProcessPCH /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-dcfbgsrltlcajocqehwntvbsujqw/StatCalc-Prefix.pch.pth StatCalc/StatCalc-Prefix.pch normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.analyzer
+r0
+
+CProcessPCH /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch.pth StatCalc/StatCalc-Prefix.pch normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler
+s409730946.475747
+e409730947.562594
+r1
+xProcessPCH
+x/var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch.pth
+xStatCalc/StatCalc-Prefix.pch
+xnormal
+xx86_64
+xobjective-c
+xcom.apple.compilers.llvm.clang.1_0.compiler
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection39"Precompile StatCalc/StatCalc-Prefix.pch3cf47982ff6bb841^5f249083ff6bb841^---0#0#0#-19%DVTDocumentLocation2@74"file://localhost/Users/oshio/Projects6/NumKit/StatCalc/StatCalc-Prefix.pch0000000000000000^2849"ProcessPCH /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch.pth StatCalc/StatCalc-Prefix.pch normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.compiler    cd /Users/oshio/Projects6/NumKit    setenv LANG en_US.US-ASCII    /Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/clang -x objective-c-header -arch x86_64 -fmessage-length=0 -std=gnu99 -fobjc-arc -Wno-trigraphs -fpascal-strings -O0 -Wno-missing-field-initializers -Wno-missing-prototypes -Wreturn-type -Wno-implicit-atomic-properties -Wno-receiver-is-weak -Wduplicate-method-match -Wformat -Wno-missing-braces -Wparentheses -Wswitch -Wno-unused-function -Wno-unused-label -Wno-unused-parameter -Wunused-variable -Wunused-value -Wempty-body -Wuninitialized -Wno-unknown-pragmas -Wno-shadow -Wno-four-char-constants -Wno-conversion -Wconstant-conversion -Wint-conversion -Wenum-conversion -Wshorten-64-to-32 -Wpointer-sign -Wno-newline-eof -Wno-selector -Wno-strict-selector-match -Wno-undeclared-selector -Wno-deprecated-implementations -DDEBUG=1 -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX10.8.sdk -fasm-blocks -fstrict-aliasing -Wprotocol -Wdeprecated-declarations -mmacosx-version-min=10.7 -g -Wno-sign-conversion -iquote /Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-generated-files.hmap -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-own-target-headers.hmap -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-all-target-headers.hmap -iquote /Users/oshio/Projects6/NumKit/build/StatCalc.build/StatCalc-project-headers.hmap -I/Users/oshio/Projects6/NumKit/build/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/include -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/DerivedSources/x86_64 -I/Users/oshio/Projects6/NumKit/build/StatCalc.build/DerivedSources -F/Users/oshio/Projects6/NumKit/build --serialize-diagnostics /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch.dia -c /Users/oshio/Projects6/NumKit/StatCalc/StatCalc-Prefix.pch -o /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch.pth -MMD -MT dependencies -MF /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-enmegtgsxjqyrgfwqhtcycxmdlfz/StatCalc-Prefix.pch.d36"FCA5C069-C8AA-4DA2-8FDA-CE7F3C9F9B62-
+
+CProcessPCH /var/folders/18/p0mz95_j0hs2lvs30_yv8wqw0000gn/C/com.apple.Xcode.501/SharedPrecompiledHeaders/StatCalc-Prefix-evudvzkmycpparfbxzpjhoyjrvmk/StatCalc-Prefix.pch.pth StatCalc/StatCalc-Prefix.pch normal x86_64 objective-c com.apple.compilers.llvm.clang.1_0.analyzer
+r0
+
+CTouch /Users/oshio/Projects6/NumKit/build/StatCalc.app
+s409657339.302228
+e409657339.310757
+r1
+xTouch
+x/Users/oshio/Projects6/NumKit/build/StatCalc.app
+lSLF05#21%IDEActivityLogSection1@2#32"com.apple.dt.IDE.BuildLogSection54"Touch /Users/oshio/Projects6/NumKit/build/StatCalc.app7d754dfbdf6ab841^9b8f4ffbdf6ab841^---0#0#0#--133"Touch build/StatCalc.app    cd /Users/oshio/Projects6/NumKit    /usr/bin/touch -c /Users/oshio/Projects6/NumKit/build/StatCalc.app36"A8D57BD6-5930-4DC3-B6D8-8EE1B70BAB7A-
+

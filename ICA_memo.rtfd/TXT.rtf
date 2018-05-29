@@ -1,0 +1,93 @@
+{\rtf1\ansi\ansicpg1252\cocoartf1348\cocoasubrtf170
+{\fonttbl\f0\fswiss\fcharset0 Helvetica;\f1\fnil\fcharset128 HiraKakuProN-W3;}
+{\colortbl;\red255\green255\blue255;}
+\paperw11900\paperh16840\margl1440\margr1440\vieww20040\viewh18060\viewkind0
+\pard\tx566\tx1133\tx1700\tx2267\tx2834\tx3401\tx3968\tx4535\tx5102\tx5669\tx6236\tx6803\pardirnatural
+
+\f0\fs36 \cf0 \
+ICA memo\
+\
+ICA
+\f1 \'82\'cd
+\f0 p
+\f1 \'8c\'c2\'82\'cc\'8e\'9e\'8c\'6e\'97\'f1\'83\'66\'81\'5b\'83\'5e
+\f0 X (n, p) (column vector
+\f1 \'82\'aa\'82\'bb\'82\'ea\'82\'bc\'82\'ea\'82\'cc\'8e\'9e\'8c\'6e\'97\'f1\'83\'66\'81\'5b\'83\'5e\'81\'6a\
+\'82\'f0\'93\'9d\'8c\'76\'93\'49\'82\'c9\'93\'c6\'97\'a7\'82\'c8\'8e\'9e\'8c\'6e\'97\'f1\'83\'66\'81\'5b\'83\'5e\'82\'c9\'95\'aa\'89\'f0\'82\'b7\'82\'e9\'81\'42\
+\
+==== FastICA ====\
+Find W (n, n) s.t. XKW = S, (or X'W = S, X' = XK)\
+X (n, p) : input\
+K (p, n) : pre-whitening matrix\
+W (n, n) : mixing matrix\
+n: number of time points\
+p: number of pixels\
+\
+// pseudo-code\
+(K, W) = ICA(X)\
+\{\
+	w_init (n, n) = matrix of n(0, 1) (or E?)\
+	col_center(X) // subtract mean from each column of X\
+	if (row.norm) \{\
+		row_center(X)	// subtract mean from each row\
+		row_norm(X)	// make norm of each row to 1.0\
+		## from here on, X is transposed in fastICA source\
+	\}\
+	// whitening\
+	
+\f0\fs24 {{\NeXTGraphic Pasted Graphic 7.pdf \width1880 \height380
+}¬}
+\f1\fs36 \
+	
+\f0\fs24 {{\NeXTGraphic Pasted Graphic 5.pdf \width1740 \height380
+}¬}
+\f1\fs36 \
+	
+\f0\fs24 {{\NeXTGraphic Pasted Graphic 6.pdf \width3200 \height1480
+}¬}
+\f1\fs36 \
+	for (iter = 0; iter ax_iter; iter++) \{\
+		wx = X' W\
+		
+\f0\fs24 {{\NeXTGraphic Pasted Graphic 1.pdf \width4300 \height860
+}¬}
+\f1\fs36 \
+		
+\f0\fs24 {{\NeXTGraphic Pasted Graphic 2.pdf \width2580 \height840
+}¬}
+\f1\fs36 \
+		
+\f0\fs24 {{\NeXTGraphic Pasted Graphic 3.pdf \width5540 \height860
+}¬}
+\f1\fs36 \
+		V2 = Diag(col_mean(gwx))\
+		W1 = V1 - V2\
+		orthog(W1)\
+		W = W1\
+\
+\
+		if (tol < 1e-8) break;\
+	\}\
+\}\
+\
+###\'97\'76\'8a\'6d\'94\'46\
+n\'8c\'c2\'82\'cc\'8e\'9e\'8c\'6e\'97\'f1\'89\'e6\'91\'9c I (n, x, y) \'82\'c9\'91\'ce\'82\'b5\'82\'c4\'81\'41xy(z)\'82\'f0\'88\'ea\'8e\'9e\'8c\'c0\'82\'c9\'93\'57\'8a\'4a\'82\'b5\'82\'bdA (n, r)\'82\'f0\
+\'8d\'6c\'82\'a6\'82\'e9\'81\'42\'92\'bc\'90\'daICA\'82\'f0\'93\'4b\'97\'70\'82\'b7\'82\'e9\'82\'c9\'82\'cdr\'82\'aa\'91\'e5\'82\'ab\'82\'b7\'82\'ac\'82\'e9\'82\'bd\'82\'df\'81\'41svd\'82\'c9\'82\'e6\'82\'e8\
+A = UsVt\
+\'82\'ccU (n, n) \'82\'c9\'91\'ce\'82\'b5\'82\'c4ICA\'82\'f0\'93\'4b\'97\'70\'82\'b7\'82\'e9\'81\'42\
+UXW = S\
+\'91\'ce\'89\'9e\'82\'b7\'82\'e9\'88\'f6\'8e\'71\'89\'e6\'91\'9c\'82\'cd\
+B (ncomp, r) = (VXW)t\
+B (ncomp, r)\'82\'f0 E (ncomp, x, y)\'82\'c9\'93\'57\'8a\'4a\
+\
+###\'97\'76\'8a\'6d\'94\'46\
+whitening matrix\'82\'f0svd\'82\'c5\'8c\'76\'8e\'5a\'82\'b7\'82\'e9\'95\'fb\'96\'40 (without calculting XtX)\
+\
+whitening: transform a vector of random variables with known covaiance matrix\
+	whitening: removes correlation and set variances 1\
+	decorrelation: removes correlation, with variance intact\
+	standization: sets variances to 1 but correlations intact\
+\
+z-score: vs pca\
+\
+}

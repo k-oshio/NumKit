@@ -1,0 +1,7 @@
+//
+// Prefix header for all source files of the 'StatCalc' target in the 'StatCalc' project
+//
+
+#ifdef __OBJC__
+    #import <Cocoa/Cocoa.h>
+#endif
