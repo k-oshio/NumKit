@@ -2,6 +2,7 @@
 //  NumKit.h
 //
 //  Created by Koichi Oshio on 2-26-2013.
+//	created local git repository on 5-29-2018
 //
 //	=== plans (linear) ===
 //	use BLAS / LAPACK
@@ -133,7 +134,7 @@ typedef struct {
 	float	t2;
 } Num_rf;
 
-// ======= Object version ====
+// ======= Object version ==== ## not implemented yet
 @interface NumVector : NSObject
 {
 	int				type;
@@ -148,36 +149,73 @@ typedef struct {
 - (void)clear;
 - (void)normal;
 - (void)ramp;
+- (NumMatrix *)diagMatrix;
 
 @end
 
 @interface NumMatrix : NSObject
 {
 	int				type;
-	int				nrow;
-	int				ncol;
+	int				nRow;
+	int				nCol;
+	int				len;	// == nRow * nCol
 	NSMutableData	*data;
 }
 
-+ (NumMatrix *)matrixOfType:(int)type nrow:(int)nr ncol:(int)nc;
-+ (NumMatrix *)matrixWithNumMat:(Num_mat *)mat;
-- (NumMatrix *)initWithType:(int)type nrow:(int)nr ncol:(int)nc;
++ (NumMatrix *)matrixWithImage:(RecImage *)img;
++ (NumMatrix *)matrixOfType:(int)type nRow:(int)nr nCol:(int)nc;
++ (NumMatrix *)matrixWithMatrix:(NumMatrix *)m;
++ (NumMatrix *)unitMatrixOfDim:(int)n;
+- (NumMatrix *)initWithType:(int)type nRow:(int)nr nCol:(int)nc;
 - (float *)data;
 - (int)type;
-- (int)nrow;
-- (int)ncol;
+- (int)nRow;
+- (int)nCol;
+- (int)ld;		// leading dimension (== nRow)
+- (int)len;
+
+// low level
 - (void)clear;
 - (void)normal;
-- (NumMatrix *)copy;
+- (NumMatrix *)copy;	// copy object
 - (NumMatrix *)trans;
-- (NumMatrix *)unitMatrixOfDim:(int)n;
-- (NumMatrix *)multWithVector:(NumVector *)v;
-- (NumMatrix *)multWithMatrix:(NumMatrix *)m;
-- (NumMatrix *)multWithMatrix:(NumMatrix *)m transSelf:(BOOL)ts transMat:(BOOL)tm;
-- (NumMatrix *)diagMatrixWithVector:(NumVector *)v;
+//- (NumMatrix *)diagMatrixWithVector:(NumVector *)v;
+- (NumMatrix *)diagMatrix;			// make diag mat with single col or single row mat
+- (void)copyMatrix:(NumMatrix *)m;		// copy data, size can be different
+//- (NumVector *)multWithVector:(NumVector *)v;	// everything is matrix
+- (NumMatrix *)multWithMat:(NumMatrix *)m;
+- (NumMatrix *)multWithConst:(float)a;
+- (NumMatrix *)addMat:(NumMatrix *)m;
+- (NumMatrix *)subMat:(NumMatrix *)m;
+- (NumMatrix *)addConst:(float)a;	// sub not necessary (just make a negative)
+- (NumMatrix *)colVect:(int)ix;
+- (NumMatrix *)rowVect:(int)ix;
+- (NumMatrix *)selectCol:(int)col;
+- (void)copyVec:(NumMatrix *)v atCol:(int)col;
+- (float)minVal;
+- (NumMatrix *)colMean;		// ok
+- (NumMatrix *)rowMean;		// ok
+- (NumMatrix *)colCenter;	// ok
+- (NumMatrix *)rowCenter;	// ok
+- (NumMatrix *)colSD;		// ## vec -> diag matrix
+- (NumMatrix *)rowSD;		// ## vec -> diag matrix
+- (NumMatrix *)colNorm;		// ## -> just mmul
+- (NumMatrix *)rowNorm;		// ## -> just mmul
+- (NumMatrix *)orthog;
 
-- (NSDictionary *)svd;	// returns dict with entry: "U", "s", "Vt"
-- (NSDictionary *)ica;	// returns dict with entry: "WX", "W"
+// high level
+- (NumMatrix *)solveLinear:(NumMatrix *)B;
+- (NumMatrix *)solveLinearNN:(NumMatrix *)B;	// NNLS
+- (NSDictionary *)svd;				// returns dict with entry: "U", "S", "Vt"
+- (NSDictionary *)icaForNC:(int)nc;	// returns dict with entry: "WX", Y"
+
+// RecImage
+- (RecImage *)toRecImage;
+- (void)saveAsKOImage:(NSString *)path;
+- (void)copyImage:(RecImage *)img;
+
+// debug
+- (void)dump;
 
 @end
 // ======= Object version ====
@@ -307,13 +345,13 @@ void        Num_unit_mat(Num_mat *a);									// A <- I
 // depricate and write new routines using LAPACK
 int			Num_gaussj(Num_mat *a, Num_mat *b);							// A, b -> A-1, x, b can be NULL
 //void        Num_jacobi(Num_mat *m, Num_mat *evec, Num_vec *eval);
-void        Num_pinv(Num_mat *b, Num_mat *a);							// B = A+, A:mxn, B:nxm
 void        Num_vadd(Num_vec *v1, Num_vec *v2, Num_vec *res);			// res = v1 + v2
 void        Num_vsma(Num_vec *x, float a, Num_vec *y);					// y = a * x + y
 void		Num_grmsch(Num_mat *a);										// make ortho-nomal
 
 // complex not done yet ###
-int			Num_inv(Num_mat *A, Num_mat *B);
+int			Num_inv(Num_mat *X, Num_mat *A, Num_mat *B);	// solve AX = B
+int			Num_nnls(Num_mat *X, Num_mat *A, Num_mat *B);	// solve AX = B, such that all elements of X >= 0
 void		Num_evd_ref(Num_mat *A, Num_mat *Evec, Num_vec *eval);
 void		Num_normalize_vec(Num_vec *v);
 
@@ -357,6 +395,7 @@ void				Num_free_evd_result(Num_evd_result *r);
 
 // === ODE ===
 void        Num_rk4(float *x, float *y, float (^deriv)(float x, float y), float step);    // not tested yet
+float		Num_rk4_area(float (^deriv)(float x, float y), float st, float ed, int n);    // not tested yet
 
 // === Bloch simulation / phase graph ===
 Num_spin *	Num_new_spin(int order);

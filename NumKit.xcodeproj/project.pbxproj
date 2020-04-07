@@ -499,7 +499,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "";
 				INSTALL_PATH = "@rpath";
-				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Resources/ /Users/oshio/Projects6/RecKit/RecKit/build";
+				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Resources/ /Users/oshio/Projects6/RecKit/RecKit/build $(HOME)/Projects6/NumKit/build";
 				LIBRARY_SEARCH_PATHS = /Users/oshio/Projects6/Reckit/Reckit/build;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				OBJROOT = build;
@@ -533,7 +533,7 @@
 				GCC_WARN_UNUSED_VARIABLE = YES;
 				HEADER_SEARCH_PATHS = "";
 				INSTALL_PATH = "@rpath";
-				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Resources/ /Users/oshio/Projects6/RecKit/RecKit/build";
+				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Resources/ /Users/oshio/Projects6/RecKit/RecKit/build $(HOME)/Projects6/NumKit/build";
 				LIBRARY_SEARCH_PATHS = /Users/oshio/Projects6/Reckit/Reckit/build;
 				MACOSX_DEPLOYMENT_TARGET = 10.6;
 				OBJROOT = build;

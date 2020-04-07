@@ -31,6 +31,9 @@ void    test17();   // eigenvalue
 void    test18();   // SVD
 void    test19();   // ICA
 void    test20();   // ICA
+void	test21();	// NumMatrix (solveLinear, solveLinerarNN)
+void	test22();	// NumMatrix (low level func)
+void	test23();	// NNLS analysis of multi-exponential data
 
 int main(int argc, const char * argv[])
 {
@@ -38,7 +41,7 @@ int main(int argc, const char * argv[])
     //	test0();    //Machine EPS = 1.4013e-45 (iter = 149)
     //	test1();    // brak / brent
     //	test2();	// LS, marq & conj
-    	test3();    // stat
+    //	test3();    // stat
     //	test4();    // t-test / F-test
     //	test5();    // complex t-test
     //	test6();    // matrix basic
@@ -53,9 +56,12 @@ int main(int argc, const char * argv[])
 	//	test15();	// Mat <-> RecImage conversion
 	//	test16();	// phase graph
 	//	test17();	// eigenvalue
-	//	test18();	// SVD
+		test18();	// SVD / ICA
 	//	test19();   // ICA
 	//	test20();   // ICA
+	//	test21();	// NumMatrix
+	//	test22();	// NumMatrix (low level methods)
+	//	test23();	// NNLS analysis of multi-exponential data
    }
     return 0;
 }
@@ -430,78 +436,6 @@ test4()
     free(p2);
 }
 
-/*
-// complex t-test
-// === plans:
-//  try signed F-test
-//  try both uncorrelated and correlated samples
-void
-test5()
-{
-    float       *re1, *re2;
-    float       *im1, *im2;
-    Num_cvec    *p1, *p2;
-    float       mr1, mr2, mi1, mi2, v1, v2;
-    float       pval, tval, mdif, vdif;
-    float       th;
-    int         i, k;
-    int         fls = 0, flsn = 0;
-    float       pthres = 0.05;
-    BOOL        ttest = NO;
-    int         n = 100, ntry = 1000;
-
-    p1 = Num_new_cvec(n);
-    p2 = Num_new_cvec(n);
-    re1 = p1->re;
-    im1 = p1->im;
-    re2 = p2->re;
-    im2 = p2->im;
-
-// === complex ===
-    printf("===============\n");
-    for (k = 0; k < ntry; k++) {
-        for (i = 0; i < n; i++) {
-            Num_cnrml(re1 + i, im1 + i, 0, 0, 1.0);
-            Num_cnrml(re2 + i, im2 + i, 0, 0, 1.0);
-        }
-        Num_cavevar(p1, &mr1, &mi1, &v1);
-     //   printf("p1: mr = %f, mi = %f, v = %f\n", mr1, mi1, v);
-        Num_cavevar(p2, &mr2, &mi2, &v2);
-     //   printf("p2: mr = %f, mi = %f, v = %f\n", mr2, mi2, v);
-        mdif = sqrt((mr1 - mr2)*(mr1 - mr2) + (mi1 - mi2)*(mi1 - mi2));
-        vdif = v1 - v2;
-
-        if (ttest) {
-            Num_ctmean(p1, p2, &tval, &pval, &th);  // complex t-mean
-            printf("mdif = %3.1f, t-sq = %3.1f, p = %3.1f, th = %3.1f\n", mdif, tval, pval * 100, th);
-            if (pval < pthres) fls++;
-        } else {
-            Num_ctvar(p1, p2, &tval, &pval, &th);      // complex t-var
-                    // k, vdif, F, p
-            printf("%d %-5.1f %-5.1f %3.3f\n", k, vdif, tval, pval);
-        //    printf("%d %f %f\n", k, vdif, tval);
-            if (pval < pthres) {
-                if (th < M_PI/2) {
-                    flsn++;
-                } else {
-                    fls++;
-                }
-            }
-        }
-    }
-    if (ttest) {
-        printf("==== t - mean ====\n");
-        printf("fls = %f (should be %3.3f)\n", (float)fls / ntry, pthres);
-    } else {
-        printf("==== t - var ====\n");
-        printf("fls/flsn = %f/%f (should be %3.3f)\n", (float)fls/ntry, (float)flsn/ntry, pthres);
-    }
-
-    Num_free_cvec(p1);
-    Num_free_cvec(p2);
-}
-*/
-
 void
 test6()
 {
@@ -612,37 +546,179 @@ test7()
 
 }
 
+// mat inv
 void
 test8()
 {
-    Num_mat     *a, *aa;
-    Num_vec     *b, *x;
-    int         m = 4, n = 3;
+    Num_mat     *A, *B, *X;
+	RecImage	*a_img, *b_img;
+	float		*pa, *pb;
+    int         m, n;
+	int			mode = 0;	// 0: square, 1: under, 2: over, 3: single b vector, 4: NNLS
 
-    a = Num_new_mat(m, n);
-    aa = Num_new_mat(n, m);
-    b = Num_new_vec(m);
-    x = Num_new_vec(n);
-    
-    a->data[0] = 1; a->data[1] = 2; a->data[2] = 4;
-    a->data[3] = 1; a->data[4] = 3; a->data[5] = 1;
-    a->data[6] = 2; a->data[7] = 4; a->data[8] = 5;
-    a->data[9] = 4; a->data[10] = 1; a->data[11] = 3;
+	switch (mode) {
+	case 0:
+	// === square matrix ====
+		m = 3, n = 3;
+		a_img = [RecImage imageOfType:RECIMAGE_REAL xDim:m yDim:n];
+		b_img = [RecImage imageOfType:RECIMAGE_REAL xDim:2 yDim:n];
+	 
+		pa = [a_img data];
+		pb = [b_img data];
 
-    x->data[0] = 1;
-    x->data[1] = 2;
-    x->data[2] = 3;
-//    x->data[3] = 4;
+	// 3 x 3
+		pa[0] = 1;	pa[1] = 2;	pa[2] = 3;
+		pa[3] = 5;	pa[4] = 6;	pa[5] = 7;
+		pa[6] = 1;	pa[7] = 1;	pa[8] = 3;
 
-    Num_mvmul(b, a, x);
-    dump_vec(b);
+	// 3 x 2
+		pb[0] = 1;	pb[1] = 2;
+		pb[2] = 3;	pb[3] = 1;
+		pb[4] = 1;	pb[5] = 1;
+		
+		A = Num_im_to_m(a_img);
+		B = Num_im_to_m(b_img);
+		X = Num_new_mat(A->nc, B->nc);
 
-    Num_pinv(aa, a);
-    Num_mvmul(x, aa, b);
-    dump_vec(x);
+		dump_mat(A);
+		dump_mat(B);
+		Num_inv(X, A, B);
+		dump_mat(X);
 
-    Num_mvmul(b, a, x);
-    dump_vec(b);
+		Num_mmul(B, A, X);
+		dump_mat(B);
+		
+		Num_free_mat(A);
+		Num_free_mat(B);
+		Num_free_mat(X);
+		break;
+	case 1:	// under-determined ### not correct yet (second colmumn)
+		m = 3, n = 4;
+		a_img = [RecImage imageOfType:RECIMAGE_REAL xDim:n yDim:m];
+		b_img = [RecImage imageOfType:RECIMAGE_REAL xDim:2 yDim:m];
+	 
+		pa = [a_img data];
+		pb = [b_img data];
+
+	// A: 3 x 4
+		pa[0] = 1;	pa[1] = 2;	pa[2] = 3;	pa[3] = 4;
+		pa[4] = 5;	pa[5] = 6;	pa[6] = 7;	pa[7] = 4;
+		pa[8] = 1;	pa[9] = 1;	pa[10] = 2;	pa[11] = 4;
+
+	// B: 3 x 2
+		pb[0] = 1;	pb[1] = 2;
+		pb[2] = 3;	pb[3] = 1;
+		pb[4] = 1;	pb[5] = 1;
+		
+		A = Num_im_to_m(a_img);
+		B = Num_im_to_m(b_img);
+		X = Num_new_mat(A->nc, B->nc);
+
+		dump_mat(A);
+		dump_mat(B);
+		Num_inv(X, A, B);
+		dump_mat(X);	// X : 7 x 2
+
+		Num_mmul(B, A, X);
+		dump_mat(B);
+		break;
+	case 2:
+		m = 4, n = 3;
+		a_img = [RecImage imageOfType:RECIMAGE_REAL xDim:n yDim:m];
+		b_img = [RecImage imageOfType:RECIMAGE_REAL xDim:2 yDim:m];
+	 
+		pa = [a_img data];
+		pb = [b_img data];
+
+	// A: 4 x 3
+		pa[0] = 1;	pa[1] = 2;	pa[2] = 3;;
+		pa[3] = 5;	pa[4] = 6;	pa[5] = 7;
+		pa[6] = 1;	pa[7] = 1;	pa[8] = 3;;
+		pa[9] = 1;	pa[10] = 3;	pa[11] = 1;;
+
+	// B: 3 x 2
+		pb[0] = 1;	pb[1] = 2;
+		pb[2] = 3;	pb[3] = 1;
+		pb[4] = 1;	pb[5] = 3;
+		pb[6] = 1;	pb[7] = 1;
+		
+		A = Num_im_to_m(a_img);
+		B = Num_im_to_m(b_img);
+		X = Num_new_mat(A->nc, B->nc);
+
+		dump_mat(A);
+		dump_mat(B);
+		Num_inv(X, A, B);
+		dump_mat(X);	// X : 7 x 2
+
+		Num_mmul(B, A, X);
+		dump_mat(B);
+		break;
+	case 3:
+		m = 4, n = 3;
+		a_img = [RecImage imageOfType:RECIMAGE_REAL xDim:n yDim:m];
+		b_img = [RecImage imageOfType:RECIMAGE_REAL xDim:1 yDim:m];
+	 
+		pa = [a_img data];
+		pb = [b_img data];
+
+	// A: 4 x 3
+		pa[0] = 1;	pa[1] = 2;	pa[2] = 3;;
+		pa[3] = 5;	pa[4] = 6;	pa[5] = 7;
+		pa[6] = 1;	pa[7] = 1;	pa[8] = 3;;
+		pa[9] = 1;	pa[10] = 3;	pa[11] = 1;;
+
+	// B: 3 x 1
+		pb[0] = 1;
+		pb[1] = 3;
+		pb[2] = 1;
+		pb[3] = 1;
+		
+		A = Num_im_to_m(a_img);
+		B = Num_im_to_m(b_img);
+		X = Num_new_mat(A->nc, B->nc);
+
+		dump_mat(A);
+		dump_mat(B);
+		Num_inv(X, A, B);
+		dump_mat(X);	// X : 7 x 2
+
+		Num_mmul(B, A, X);
+		dump_mat(B);
+		break;
+	case 4:
+		m = 4, n = 3;
+		a_img = [RecImage imageOfType:RECIMAGE_REAL xDim:n yDim:m];
+		b_img = [RecImage imageOfType:RECIMAGE_REAL xDim:1 yDim:m];
+	 
+		pa = [a_img data];
+		pb = [b_img data];
+
+	// A: 4 x 3
+		pa[0] = 1;	pa[1] = 1;	pa[2] = 1;
+		pa[3] = 2;	pa[4] = 4;	pa[5] = 8;
+		pa[6] = 3;	pa[7] = 9;	pa[8] = 27;
+		pa[9] = 4;	pa[10] = 16;	pa[11] = 64;
+
+	// B: 3 x 1
+		pb[0] = 0.73;
+		pb[1] = 3.24;
+		pb[2] = 8.31;
+		pb[3] = 16.72;
+		
+		A = Num_im_to_m(a_img);
+		B = Num_im_to_m(b_img);
+		X = Num_new_mat(A->nc, B->nc);
+
+		dump_mat(A);
+		dump_mat(B);
+		Num_inv(X, A, B);
+		dump_mat(X);	// X : 7 x 2
+
+		Num_mmul(B, A, X);
+		dump_mat(B);
+		break;
+	}
 }
 
 void
@@ -748,7 +824,8 @@ test10()
     dump_vec(s);
 
 // linear least sqares
-    Num_pinv(B, A);
+//    Num_pinv(B, A);
+//	Num_inv(X, A, B);
     //dump_mat(B);
 
     Num_mvmul(x, B, s);
@@ -1072,146 +1149,106 @@ test17()
 void
 test18()
 {
-	RecImage	*raw, *img, *img_a, *img_u, *img_e, *tmp, *mask;
-	RecLoop		*slc;
-	Num_mat		*A;
-	int			xDim, yDim, nSlc;
-	int			nr, nc, n;
-//	int			ncomp;
-	Num_svd_result	*sres;
-	Num_ica_result	*ires;
+	RecImage		*img, *img_a, *img_u, *img_e, *tmp;
+	NumMatrix		*A;
+	int				xDim, yDim, nSlc;
+	NSDictionary	*res;
 
 	system("rm IMG_*");
 
+// === low level
 	if (0) {
-	//	raw = [RecImage imageOfType:RECIMAGE_REAL xDim:nc yDim:nr];
-		raw = [RecImage imageWithMeasAsc:@"../RecKit/test_img/meas.asc" andMeasData:@"../RecKit/test_img/meas.out"];
-	//	[raw saveAsKOImage:@"IMG_in"];
-		slc = [RecLoop findLoop:@"kz"];
-		raw = [raw sliceAtIndex:0 forLoop:slc];
-		[raw fft2d:REC_FORWARD];
-		[raw freqCrop];
-		[raw epiPcorr2];	// polynomial
-		xDim = [raw xDim];
-		yDim = [raw yDim];
-		nSlc = [raw nImages];
-		img = [RecImage imageOfType:RECIMAGE_COMPLEX xDim:xDim yDim:yDim zDim:nSlc];
-		[img copyImageData:raw];
-		[img dumpLoops];
-		[img saveAsKOImage:@"IMG_in"];
-		mask = [img magMask:0.03];
-	// === corrections
-		//[img saveAsKOImage:@"IMG_epipcorr"];
-	//	[img takeRealPart];
-		[img phase];
-		[img maskWithImage:mask];
-		[img saveAsKOImage:@"IMG_phs"];
+		NumMatrix	*B;
+		float		*p;
+		int			i;
+		A = [NumMatrix matrixOfType:NUM_REAL nRow:3 nCol:3];
+		p = [A data];
+		for (i = 0; i < [A len]; i++) {
+			p[i] = i;
+		}
+		[A dump];
+		B = [A colCenter];
+		[B dump];
+		B = [A rowCenter];
+		[B dump];
+
+		exit(0);
 	}
+	// non-linearity func
+	if (0) {
+		int		i;
+		float	x, y1, y2, y3, y4, alpha = 2.0;
+		for (i = 0; i < 100; i++) {
+			x = (float)(i - 50) / 25;
+			y1 = tanh(alpha * x);
+			y2 = 1 / cosh(alpha * x);
+			y3 = x * exp(-x*x/2);
+			y4 = (1 - x* x) * exp(-x*x/2);
+			printf("%f %f %f\n", x, y1, y2);
+		}
+		exit(0);
+	}
+
 
 // ==== new test image set
 
 //	img = [RecImage imageWithKOImage:@"../RecKit/toshiba_images/DWI-rinkan-2/b200-proc/b200-1.img"];
-	img = [RecImage imageWithKOImage:@"../RecKit/nciRecon/IMG_bold.sav"];
-	[img magnitude];
+//	img = [RecImage imageWithKOImage:@"../RecKit/nciRecon/IMG_bold.sav"];
+	img = [RecImage imageWithKOImage:@"/Users/oshio/images/NCI/NIRS/2018-0627/results/2/IMG_mg"];
+//	[img magnitude];
 	xDim = [img xDim];
 	yDim = [img yDim];
 	nSlc = [img zDim];
+
+	nSlc = 800;
+	[img crop:[img zLoop] to:nSlc startAt:0];
+	[img saveAsKOImage:@"IMG_img"];
+
 	printf("x/y/slc = %d/%d/%d\n", xDim, yDim, nSlc);
 	img_a = [RecImage imageOfType:RECIMAGE_REAL xDim:xDim * yDim yDim:nSlc];
-	nc = [img_a xDim];
-	nr = [img_a yDim];
-	n = MIN(nr, nc);
-	printf("nr/nc = %d/%d, n = %d\n", nr, nc, n);
 
 	[img_a copyImageData:img];
 	[img_a saveAsKOImage:@"IMG_A"];
-	[img saveAsKOImage:@"IMG_in"];
 
-	A = Num_im_to_m(img_a);
+//	A = Num_im_to_m(img_a);
+	A = [img_a toMatrix];
 
 // PCA (new interface)
 	if (0) {
 		printf("new interface\n");
-		Num_col_center(A);
-		sres = Num_svd(A);
-		img_u = Num_m_to_im(sres->U);
+		res = [A svd];
+//		img_u = Num_m_to_im(sres->U);
+		img_u = [[res objectForKey:@"U"] toRecImage];
 		[img_u trans];
 		[img_u saveAsKOImage:@"IMG_Ut"];	// Ut
-		
-		tmp = Num_m_to_im(sres->Vt);
-		[tmp saveAsKOImage:@"IMG_Vt"];
 
+//		tmp = Num_m_to_im(sres->Vt);
+		tmp = [[ res objectForKey:@"Vt"] toRecImage];
+		[tmp saveAsKOImage:@"IMG_Vt"];
 		img_e = [RecImage imageWithImage:img];
 		[img_e copyImageData:tmp];
-		[img_e saveAsKOImage:@"IMG_E"];
-
-		// filter ### -> make func
-		float		*p, *q, *qq;
-		int			i, j, k;
-		int			iDim = [img xDim] * [img yDim];
-		int			tDim = [img zDim];
-		RecImage	*err = [RecImage imageWithImage:img];
-		RecImage	*ei;
-		q = [img_u data];	// Ut
-		for (k = 0; k < 0; k++) {	// upto ns-th singular value
-			// self -= E(i) x s(i)
-			ei = [img_e sliceAtIndex:k forLoop:[img_e zLoop]];
-			p = [ei data];
-			qq = [err data];
-			for (i = 0; i < tDim; i++) {
-				for (j = 0; j < iDim; j++) {
-					qq[j] = p[j] * q[i] * sres->s->data[k];
-				}
-				qq += iDim;
-			}
-			q  += tDim;
-			// chk self & var
-			[img subImage:err];
-			printf("sval %d\n", k);
-		}
-		[err saveAsKOImage:@"IMG_err"];
-		[img saveAsKOImage:@"IMG_flt"];
-		Num_free_svd_result(sres);
-		exit(0);
+		[img_e saveAsKOImage:@"IMG_PCA"];
 	}
 
 // == ICA
-	// non-linearity func
-	if (0) {
-		int		i;
-		float	x, y, alpha = 1.0;
-		for (i = 0; i < 100; i++) {
-			x = (float)(i - 50) / 20;
-			y = tanh(alpha * x);
-			printf("%f %f\n", x, y);
-		}
-		exit(0);
-	}
 	if (1) {
-		int ncomp = 12;
-		
-		// PCA
-		Num_col_center(A);
-		sres = Num_svd(A);
-	Num_scale_rows(sres->Vt, sres->s);
-		img_a = Num_m_to_im(sres->Vt);
-		[img copyImageData:img_a];
-		[img saveAsKOImage:@"IMG_PCA"];
-		saveAsKOImage(sres->U, @"IMG_PCA_U");
+		int nc = 20;
+		printf("ICA (new interface)\n");
+		res = [A icaForNC:nc];
 
-		// ICA
-		ires = Num_ica(A, ncomp);
-		tmp = Num_m_to_im(ires->WK);
-		img_e = [RecImage imageOfType:RECIMAGE_REAL xDim:[img xDim] yDim:[img yDim] zDim:ncomp];
-		[img_e copyImageData:tmp];
-		[img_e saveAsKOImage:@"IMG_map"];
-		saveAsKOImage(ires->WX, @"IMG_out");
-		saveAsKOImage(ires->W, @"IMG_W");
-
-		Num_free_ica_result(ires);
+		img_u = [[res objectForKey:@"U"] toRecImage];
+		[img_u trans];
+		[img_u saveAsKOImage:@"IMG_U"];	// U
+		img_u = [[res objectForKey:@"XW"] toRecImage];
+		[img_u trans];
+		[img_u saveAsKOImage:@"IMG_XW"];	// XW
+		img_u = [[res objectForKey:@"W"] toRecImage];
+		[img_u saveAsKOImage:@"IMG_W"];	// W
+		img_e = [img copy];
+		[img_e crop:[img_e zLoop] to:nc startAt:0];
+		[img_e copyImageData:[[res objectForKey:@"Y"] toRecImage]]; // -> make "copyMatrixData" method
+		[img_e saveAsKOImage:@"IMG_Y"];
 	}
-
-	Num_free_mat(A);
 }
 
 // example #1
@@ -1286,4 +1323,115 @@ test20()
 
 	res = Num_ica(X, 2);
 	saveAsKOImage(res->WX, @"IMG_ans");
+}
+
+void
+test21()
+{
+    NumMatrix	*A, *B, *X;
+	float		*pa, *pb;
+    int         m, n;
+	int			mode = 0;	// 0: square, 1: under, 2: over, 3: single b vector, 4: NNLS
+
+	switch (mode) {
+	case 0:
+	// === square matrix ====
+		m = 4, n = 3;
+		A = [NumMatrix matrixOfType:NUM_REAL nRow:m nCol:n];
+		B = [NumMatrix matrixOfType:NUM_REAL nRow:m nCol:2];
+	 
+		pa = [A data];
+		pb = [B data];
+
+	// 4 x 3
+		pa[0] = 74;	pa[4] = 71;	pa[8]  = 52;
+		pa[1] = 87;	pa[5] = 74;	pa[9]  = 46;
+		pa[2] = 72;	pa[6] = 2;	pa[10] = 7;
+		pa[3] = 80;	pa[7] = 89;	pa[11] = 71;
+
+	// 4 x 2
+		pb[0] = 49;	pb[4] = 1;
+		pb[1] = 67;	pb[5] = 3;
+		pb[2] = 68;	pb[6] = 1;
+		pb[3] = 20;	pb[7] = 1;
+
+		X = [A solveLinear:B];
+		[X dump];
+		X = [A solveLinearNN:B];
+		[X dump];
+	}
+}
+
+void
+test22()	// low level
+{
+    NumMatrix	*A, *B, *C;
+	NumMatrix	*c;
+	float		*pa;
+
+	A = [NumMatrix matrixOfType:NUM_REAL nRow:3 nCol:4];
+	pa = [A data];
+	// 3 x 3
+	pa[0] = 1;	pa[3] = 2;	pa[6] = 3;	pa[9] = 1;
+	pa[1] = 5;	pa[4] = 6;	pa[7] = 7;	pa[10] = 2;
+	pa[2] = 1;	pa[5] = 1;	pa[8] = 3;	pa[11] = 3;
+
+	[A dump];
+
+	B = [A trans];
+	[B dump];
+	
+	C = [A multWithMat:B];
+	[C dump];
+	
+	c = [C colVect:1];
+	A = [A trans];
+	[A dump];
+	[c dump];
+	[[A multWithMat:c] dump];
+	
+	c = [C rowVect:0];
+	[c dump];
+}
+
+void
+test23()
+{
+	NumMatrix	*A, *B, *X;		// A: exponential, B: data, X: coefficient (solution)
+	RecImage	*img;
+	int			i, j;
+	float		t, tc1, tc2, fr;
+	float		*p;
+	int			n_time = 10;
+	int			n_tc = 10;
+
+	A = [NumMatrix matrixOfType:NUM_REAL nRow:n_time nCol:n_tc];
+	B = [NumMatrix matrixOfType:NUM_REAL nRow:n_time nCol:1];
+
+	p = [A data];
+	for (i = 0; i < n_tc; i++) {
+	//	tc1 = (float)i * 10 + 10;
+		tc1 = 10 * pow(1.8, (float)i);
+		printf("tc = %f\n", tc1);
+		for (j = 0; j < n_time; j++) {
+			t = (float)j * 10;
+			p[i * n_time + j] = exp(-t / tc1);
+		}
+	}
+	img = [A toRecImage];
+	[img saveAsKOImage:@"img_a.img"];
+	p = [B data];
+	tc1 = 10;
+	tc2 = 31;
+	fr = 1.0;
+	for (i = 0; i < n_time; i++) {
+		t = (float)i * 10;
+		p[i] = fr * exp(-t / tc1) + (1 - fr) * exp(-t / tc2);
+		printf("%f %f\n", t, p[i]);
+	}
+
+	X = [A solveLinear:B];
+	[X dump];
+	X = [A solveLinearNN:B];
+	[X dump];
 }

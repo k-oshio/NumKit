@@ -15,7 +15,7 @@
 #define TINY                EPS     // -20
 #define SHFT(a, b, c, d)    (a) = (b); (b) = (c); (c) = (d)
 #define SIGN(a, b)          ((b) >= 0.0 ? fabs(a) : -fabs(a))
-#define ITMAX               100     //800	// orig:100
+#define ITMAX               800     //800	// orig:100
 
 // todo: ... global search
 
@@ -241,9 +241,10 @@ Num_conjgr(Num_param *param, float (^cost)(float *p), void (^dcost)(float *p, fl
 			xi[j] = h[j] = g[j] + gam * h[j];
 		}
 	}
-//    if (iter >= ITMAX) {
-//        printf("NumKit: Too many iterations in Num_conjgr\n");
-//    }
+    if (iter >= ITMAX) {
+        printf("NumKit: Too many iterations in Num_conjgr\n");
+		iter = -1;
+    }
 
     free(g); free(h); free(xi);
     *minval = err;

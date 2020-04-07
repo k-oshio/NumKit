@@ -134,7 +134,9 @@ Num_nrml(float m, float sd)
 	r = (r - (float)n/2) * sqrt(12.0/n);
 
 	return r * sd + m;
-}// uniform dist, (0.0, 1.0)
+}
+
+// uniform dist, (0.0, 1.0)
 float
 Num_unif(float m, float sd)
 {

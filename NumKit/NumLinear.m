@@ -2,7 +2,8 @@
 // NumLinear.m
 //
 //  == plans ==
-//	use BLAS & LAPACK
+//	make object version
+//		svd ok, implement ica
 
 #import "NumKit.h"
 
@@ -84,31 +85,40 @@
 	}
 }
 
+- (NumMatrix *)diagMatrix
+{
+	int			i, n = [self length];
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:n nCol:n];
+	float		*p = [m data];
+	float		*q = [self data];
+
+	for (i = 0; i < n; i++) {
+		p[i * n + i] = q[i];
+	}
+
+	return m;
+}
+
 @end
 
 
 @implementation NumMatrix
 
-+ (NumMatrix *)matrixOfType:(int)tp nrow:(int)nr ncol:(int)nc
++ (NumMatrix *)matrixOfType:(int)tp nRow:(int)nr nCol:(int)nc
 {
 	NumMatrix	*m;
 
 	m = [NumMatrix alloc];
-	return [m initWithType:tp nrow:nr ncol:nc];
+	return [m initWithType:tp nRow:nr nCol:nc];
 }
 
-+ (NumMatrix *)matrixWithNumMat:(Num_mat *)mat
++ (NumMatrix *)matrixWithMatrix:(NumMatrix *)m
 {
-	NumMatrix	*m;
-
-	m = [NumMatrix alloc];
-	return [m initWithType:mat->type nrow:mat->nr ncol:mat->nc];
+	return [NumMatrix matrixOfType:[m type] nRow:[m nRow] nCol:[m nCol]];
 }
 
-- (NumMatrix *)initWithType:(int)tp nrow:(int)nr ncol:(int)nc
+- (NumMatrix *)initWithType:(int)tp nRow:(int)nr nCol:(int)nc
 {
-	int		len;
-
 	self = [super init];
 	if (!self) return nil;
 
@@ -116,17 +126,59 @@
 	if (tp == NUM_COMPLEX) {
 		len *= 2;
 	}
-	data = [NSMutableData dataWithLength:sizeof(float) *len];
+	data = [NSMutableData dataWithLength:sizeof(float) * len];
 	type = tp;
-	nrow = nr;
-	ncol = nc;
+	nRow = nr;
+	nCol = nc;
 
 	return self;
 }
 
++ (NumMatrix *)matrixWithImage:(RecImage *)img
+{
+	NumMatrix	*m;
+	int			m_type;
+
+	switch ([img type]) {
+	case RECIMAGE_REAL :
+		m_type = NUM_REAL;
+		break;
+	case RECIMAGE_COMPLEX :
+		m_type = NUM_COMPLEX;
+		break;
+	}
+	m = [NumMatrix matrixOfType:m_type nRow:[img yDim] nCol:[img xDim]];
+	[m copyImage:img];
+	return m;
+}
+
++ (NumMatrix *)unitMatrixOfDim:(int)n
+{
+	NumMatrix	*m = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:n];
+	int			i;
+	float		*p = [m data];
+
+	for (i = 0; i < n; i++) {
+		p[i * n + i] = 1;
+	}
+
+	return m;
+}
+
+
 - (float *)data
 {
 	return [data mutableBytes];
+}
+
+- (float *)real
+{
+	return [self data];
+}
+
+- (float *)imag
+{
+	return [self data] + len;
 }
 
 - (int)type
@@ -134,118 +186,942 @@
 	return type;
 }
 
-- (int)nrow
+- (int)nRow
 {
-	return nrow;
+	return nRow;
 }
 
-- (int)ncol
+- (int)nCol
 {
-	return ncol;
+	return nCol;
+}
+
+- (int)ld
+{
+	return nRow;
+}
+
+- (int)len
+{
+	return len;
 }
 
 - (void)clear
 {
-	int		i, n;
+	int		i;
 	float	*p = [self data];
 
-	n = nrow * ncol;
-	if (type == NUM_COMPLEX) {
-		n *= 2;
-	}
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < len; i++) {
 		p[i] = 0;
 	}
 }
 
 - (void)normal
 {
-	int		i, n;
+	int		i;
 	float	*p = [self data];
 
-	n = nrow * ncol;
-	if (type == NUM_COMPLEX) {
-		n *= 2;
-	}
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < len; i++) {
 		p[i] = Num_nrml(0, 1);
 	}
 }
 
 - (NumMatrix *)copy
 {
-	NumMatrix	*m = [NumMatrix matrixOfType:type nrow:nrow ncol:ncol];
-	int			i, n;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:nRow nCol:nCol];
+	int			i;
 	float		*p1 = [self data];
 	float		*p2 = [m data];
 
-	n = nrow * ncol;
-	if (type == NUM_COMPLEX) {
-		n *= 2;
-	}
-	for (i = 0; i < n; i++) {
+	for (i = 0; i < len; i++) {
 		p2[i] = p1[i];
 	}
 	return m;
 }
 
+// self is not altered
 - (NumMatrix *)trans
 {
-	NumMatrix *m;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:nCol nCol:nRow];
+	float		*p1 = [self data];
+	float		*p2 = [m data];
+	int			n1 = nRow * nCol;
+	int			n2 = [m nRow] * [m nCol];
 
+    vDSP_mtrans(p1, 1, p2, 1, nRow, nCol);
+	if (type == NUM_COMPLEX) {
+		p1 += n1;
+		p2 += n2;
+		vDSP_mtrans(p1, 1, p2, 1, nRow, nCol);
+	}
 	return m;
 }
 
-- (NumMatrix *)unitMatrixOfDim:(int)n
+- (void)copyMatrix:(NumMatrix *)mt		// copy data, size can be different
 {
-	NumMatrix *m;
+	float	*p, *q;
+	int		i, j;
+	int		m, n;
+	int		src_nr = [mt nRow];
 
-	return m;
+	m = MIN(nRow, [mt nRow]);
+	n = MIN(nCol, [mt nCol]);
+
+	p = [mt data];
+	q = [self data];
+	for (i = 0; i < n; i++) {
+		for (j = 0; j < m; j++) {
+			q[i * nRow + j] = p[i * src_nr + j];
+		}
+	}
 }
 
-- (NumMatrix *)multWithVector:(NumVector *)v
+- (NumMatrix *)addMat:(NumMatrix *)m
 {
-	NumMatrix *m;
+	NumMatrix	*res;
+	int			i;
+	float		*q, *p1, *p2;
 
-	return m;
+	res = [NumMatrix matrixWithMatrix:self];
+	q = [res data];
+	p1 = [self data];
+	p2 = [m data];
+	for (i = 0; i < len; i++) {
+		q[i] = p1[i] + p2[i];
+	}
+	return res;
 }
 
-- (NumMatrix *)multWithMatrix:(NumMatrix *)m
+- (NumMatrix *)subMat:(NumMatrix *)m
 {
-	NumMatrix *res;
+	NumMatrix	*res;
+	int			i;
+	float		*q, *p1, *p2;
+
+	res = [NumMatrix matrixWithMatrix:self];
+	q = [res data];
+	p1 = [self data];
+	p2 = [m data];
+	for (i = 0; i < len; i++) {
+		q[i] = p1[i] - p2[i];
+	}
+	return res;
+}
+
+- (NumMatrix *)addConst:(float)a	// sub not necessary (just make a negative)
+{
+	NumMatrix	*res;
+	int			i;
+	float		*q, *p1;
+
+	res = [NumMatrix matrixWithMatrix:self];
+	q = [res data];
+	p1 = [self data];
+	for (i = 0; i < len; i++) {
+		q[i] = p1[i] + a;
+	}
 
 	return res;
 }
 
-- (NumMatrix *)multWithMatrix:(NumMatrix *)m transSelf:(BOOL)ts transMat:(BOOL)tm
+// C = AB
+- (NumMatrix *)multWithMat:(NumMatrix *)m
 {
 	NumMatrix *res;
+	if (nCol != [m nRow]) {
+        Num_error("mmul dim mismatch");
+	}
+	res = [NumMatrix matrixOfType:type nRow:nRow nCol:[m nCol]];
+	cblas_sgemm(CblasColMajor, CblasNoTrans, CblasNoTrans,
+		nRow, [m nCol], nCol, 1.0, [self data], nRow, [m data], [m nRow], 0, [res data], [res nRow]);
 
 	return res;
 }
 
+- (NumMatrix *)multWithConst:(float)a
+{
+	int			i;
+	float		*p, *q;
+	NumMatrix	*res = [NumMatrix matrixWithMatrix:self];
+
+	q = [res data];
+	p = [self data];
+	for (i = 0; i < len; i++) {
+		q[i] = p[i] * a;
+	}
+
+	return res;
+}
+
+- (NumMatrix *)colVect:(int)ix
+{
+	NumMatrix	*res;
+	int			i;
+	float		*p, *q;
+
+	res = [NumMatrix matrixOfType:type nRow:nRow nCol:1];
+	q = [res data];
+	p = [self data];
+	for (i = 0; i < nRow; i++) {
+		q[i] = p[ix * nRow + i];
+	}
+
+	return res;
+}
+
+- (NumMatrix *)rowVect:(int)ix
+{
+	NumMatrix	*res;
+	int			i;
+	float		*p, *q;
+
+	res = [NumMatrix matrixOfType:type nRow:1 nCol:nCol];
+	q = [res data];
+	p = [self data];
+	for (i = 0; i < nCol; i++) {
+		q[i] = p[i * nRow + ix];
+	}
+
+	return res;
+}
+
+- (NumMatrix *)colMean
+{
+	int			i, j;
+	float		mn;
+	float		*p, *q;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:1 nCol:nCol];
+
+	q = [m data];
+	p = [self data];
+	for (i = 0; i < nCol; i++) {
+		mn = 0;
+		for (j = 0; j < nRow; j++) {
+			mn += p[i * nRow + j];
+		}
+		mn /= nRow;
+		q[i] = mn;
+	}
+	return m;
+}
+
+- (NumMatrix *)rowMean
+{
+	int			i, j;
+	float		mn;
+	float		*p, *q;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:nRow nCol:1];
+
+	q = [m data];
+	p = [self data];
+	for (i = 0; i < nRow; i++) {
+		mn = 0;
+		for (j = 0; j < nCol; j++) {
+			mn += p[j * nCol + i];
+		}
+		mn /= nCol;
+		q[i] = mn;
+	}
+	return m;
+}
+
+- (NumMatrix *)colCenter
+{
+	int			i, j;
+	float		mn;
+	float		*p, *q;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:nRow nCol:nCol];
+
+	q = [m data];
+	p = [self data];
+	for (i = 0; i < nCol; i++) {
+		mn = 0;
+		for (j = 0; j < nRow; j++) {
+			mn += p[i * nRow + j];
+		}
+		mn /= nRow;
+		for (j = 0; j < nRow; j++) {
+			q[i * nRow + j] = p[i * nRow + j] - mn;
+		}
+	}
+	return m;
+}
+
+- (NumMatrix *)rowCenter
+{
+	int			i, j;
+	float		mn;
+	float		*p, *q;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:nRow nCol:nCol];
+
+	q = [m data];
+	p = [self data];
+	for (i = 0; i < nRow; i++) {
+		mn = 0;
+		for (j = 0; j < nCol; j++) {
+			mn += p[j * nRow + i];
+		}
+		mn /= nCol;
+		for (j = 0; j < nCol; j++) {
+			q[j * nRow + i] = p[j * nRow + i] - mn;
+		}
+	}
+	return m;
+}
+
+- (NumMatrix *)colSD		// ## vec -> diag matrix
+{
+	int			i, j;
+	float		sd;
+	float		*p, *q;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:nCol nCol:nCol];
+
+	q = [m data];
+	p = [self data];
+	for (i = 0; i < nCol; i++) {
+		sd = 0;
+		for (j = 0; j < nRow; j++) {
+			sd +=  p[i * nRow + j] * p[i * nRow + j];
+		}
+		q[i * nRow + i] = sqrt(sd / nRow);
+	}
+	return m;
+	
+}
+
+- (NumMatrix *)rowSD		// ## vec -> diag matrix
+{
+	int			i, j;
+	float		sd;
+	float		*p, *q;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:nRow nCol:nRow];
+
+	q = [m data];
+	p = [self data];
+	for (i = 0; i < nRow; i++) {
+		sd = 0;
+		for (j = 0; j < nCol; j++) {
+			sd += p[j * nRow + i] * p[j * nRow + i];
+		}
+		q[i * nRow + i] = sqrt(sd / nCol);
+	}
+	return m;
+}
+
+// 0-mean columns are expected
+- (NumMatrix *)colNorm
+{
+	int			i, j;
+	float		sd;
+	float		*p, *q;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:nRow nCol:nCol];
+
+	q = [m data];
+	p = [self data];
+	for (i = 0; i < nCol; i++) {
+		sd = 0;
+		for (j = 0; j < nRow; j++) {
+			sd +=  p[i * nRow + j] * p[i * nRow + j];
+		}
+		sd = sqrt(sd / nRow);
+		for (j = 0; j < nRow; j++) {
+			q[i * nRow + j] = p[i * nRow + j] / sd;
+		}
+	}
+	return m;
+}
+
+// 0-mean rows are expected
+- (NumMatrix *)rowNorm
+{
+	int			i, j;
+	float		sd;
+	float		*p, *q;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:nRow nCol:nCol];
+
+	q = [m data];
+	p = [self data];
+	for (i = 0; i < nRow; i++) {
+		sd = 0;
+		for (j = 0; j < nCol; j++) {
+			sd += p[j * nRow + i] * p[j * nRow + i];
+		}
+		sd = sqrt(sd / nCol);
+		for (j = 0; j < nCol; j++) {
+			q[j * nRow + i] = p[j * nRow + i] / sd;
+		}
+	}
+	return m;
+}
+
+- (NumMatrix *)orthog
+{
+	NSDictionary	*res;
+	NumMatrix		*m;
+	res = [self svd];
+	m = [[res objectForKey:@"U"] multWithMat:[res objectForKey:@"Vt"]];
+	return m;
+}
+
+// wrong.. -> use NumVector method
+/*
 - (NumMatrix *)diagMatrixWithVector:(NumVector *)v
 {
-	NumMatrix *res;
+	int			i, n = [v length];
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:n nCol:n];
+	float		*p = [self data];
+	float		*q = [v data];
 
-	return res;
+	for (i = 0; i < n; i++) {
+		p[i * n + i] = q[i];
+	}
+
+	return m;
 }
+*/
 
-
-- (NSDictionary *)svd	// returns dict with entry: "U", "s", "Vt"
+- (NumMatrix *)diagMatrix			// make diag mat with single col or single row mat
 {
-	NSDictionary	*dict;
+	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:len nCol:len];
+	int			i;
+	float		*p = [m data];
+	float		*q = [self data];
 
-	return dict;
+	for (i = 0; i < len; i++) {
+		p[i * len + i] = q[i];
+	}
+	return m;
 }
 
-- (NSDictionary *)ica	// returns dict with entry: "WX", "W"
+// solve Ax = b
+- (NumMatrix *)solveLinear:(NumMatrix *)B
 {
-	NSDictionary	*dict;
+	int			m, n, nrhs;
+	int			lda, ldb, info;
+	int			*ipiv;
+	float		*work;
+	int			lwork;
+	NumMatrix	*AA, *BB;	// copy mat first. both AA & BB are overwritten by LAPACK
+	NumMatrix	*X;			// result
 
-	return dict;
+	m = nRow;
+	n = nCol;
+	lda = m;
+	ldb = MAX(m, n);
+	nrhs = [B nCol];
+
+	// output
+	X = [NumMatrix matrixOfType:type nRow:n nCol:nrhs];
+
+	// copy
+	AA = [self copy];
+	BB = [B copy];	// returns copy of object
+	if (m == n) {
+		ipiv = (int *)malloc(sizeof(int) * n);
+		sgesv_(&n, &nrhs, [AA data], &lda, ipiv, [BB data], &ldb, &info);
+		// copy output to B
+		[X copyMatrix:BB];
+		free(ipiv);
+	} else {
+		work = (float *)malloc(sizeof(float) * 1);
+		lwork = -1;
+		sgels_("N", &m, &n, &nrhs, [AA data], &lda, [BB data], &ldb, work, &lwork, &info);
+		lwork = work[0];
+		free(work);
+		work = (float *)malloc(sizeof(float) * lwork);
+		sgels_("N", &m, &n, &nrhs, [AA data], &lda, [BB data], &ldb, work, &lwork, &info);
+		free(work);
+		// copy output to B
+		[X copyMatrix:BB];
+	}
+
+	return X;
 }
 
+- (BOOL)empty
+{
+	int		i, n = nCol * nRow;
+	float	*p = [self data];
+
+	for (i = 0; i < n; i++) {
+		if (p[i] >= 0) {
+			return NO;
+		}
+	}
+	return YES;
+}
+
+- (float)maxValAt:(int *)ix
+{
+	int		i, n = nCol * nRow;
+	float	*p = [self data];
+	float	mx = 0;
+
+	for (i = 0; i < n; i++) {
+		if (p[i] > mx) {
+			mx = p[i];
+			*ix = i;
+		}
+	}
+	return mx;
+}
+
+- (NumMatrix *)solvePartial:(NumMatrix *)b list:(float *)flg
+{
+	NumMatrix	*AP, *x;
+	float		*p, *q;
+	int			i, j, ix;
+	int			nc;
+
+	nc = 0;
+	for (i = 0; i < nCol; i++) {
+		if (flg[i] > 0) {
+			nc++;
+		}
+	}
+	AP = [NumMatrix matrixOfType:[self type] nRow:nRow nCol:nc];
+	q = [AP data];
+	p = [self data];
+	for (i = ix = 0; i < nCol; i++) {
+		if (flg[i] == 0) continue;
+		
+		for (j = 0; j < nRow; j++) {
+			q[ix * nRow + j] = p[i * nRow + j];
+		}
+		ix++;
+	}
+	x = [AP solveLinear:b];
+
+	return x;
+}
+
+- (float)minVal
+{
+	int		i;
+	float	mn;
+	float	*p = [self data];
+
+	for (i = 0; i < len; i++) {
+		if (i == 0) {
+			mn = p[i];
+		} else {
+			if (mn > p[i]) {
+				mn = p[i];
+			}
+		}
+	}
+	return mn;
+}
+
+- (NumMatrix *)selectCol:(int)col
+{
+	NumMatrix	*v;
+	float		*p, *q;
+	int			i;
+
+	v = [NumMatrix matrixOfType:[self type] nRow:nRow nCol:1];
+	q = [v data];
+	p = [self data];
+	for (i = 0; i < nRow; i++) {
+		q[i] = p[col * nRow + i];
+
+	}
+	return v;
+}
+
+- (void)copyVec:(NumMatrix *)v atCol:(int)col
+{
+	float		*p, *q;
+	int			i;
+
+	q = [v data];
+	p = [self data];
+	for (i = 0; i < nRow; i++) {
+		p[col * nRow + i] = q[i];
+	}
+}
+
+// mostly ok, exit condition of main loop ###
+- (NumMatrix *)solveLinearNN:(NumMatrix *)B	// NNLS
+{
+	int			m, n, nrhs;
+	NumMatrix	*AA;					// copy mat first. both AA & BB are overwritten by LAPACK
+	NumMatrix	*X;						// result
+	NumMatrix	*w, *b, *x, *s;			// vectors
+	NumMatrix	*p;						// passive list
+	float		*pp;
+	float		tol = 1e-7;
+	float		*xx, *ss, alpha, a;
+	int			i, k, ix;
+	int			outer, inner;
+	BOOL		all;
+
+	m = nRow;
+	n = nCol;
+	nrhs = [B nCol];
+
+	// output
+	X = [NumMatrix matrixOfType:type nRow:n nCol:nrhs];
+
+	// copy
+	AA = [self copy];
+
+	// alloc variables
+	x = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:1];	// solution
+	xx = [x data];
+	
+	p = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:1];	// passive list
+	pp = [p data];
+
+	// set loop
+	for (k = 0; k < nrhs; k++) {
+		// init
+		for (i = 0; i < n; i++) {
+			pp[i] = 0;
+		}
+		b = [B colVect:k];	// i-th column
+		[x clear];
+		w = [[AA trans] multWithMat:b];	// w = At b
+
+		// main loop
+		for (outer = 0; outer < n * 2; outer++) {
+			//printf("outer = %d, max w = %f\n", outer, [w maxValAt:&ix]);
+			if ([w maxValAt:&ix] <= tol) break;
+			all = YES;
+			for (i = 0; i < n; i++) {
+				if (pp[i] == 0) {
+					all = NO;
+					break;
+				}
+			}
+			if (all) break;
+
+			// add ix to p
+			pp[ix] = 1;
+			s = [AA solvePartial:b list:pp];
+			ss = [s data];
+
+			for (inner = 0; inner < n * 2; inner++) {
+				if ([s minVal] >= 0) break;
+				alpha = 1.0;	// maximum possible value
+				for (i = ix = 0; i < n; i++) {
+					if (pp[i] == 0) continue;
+					if (ss[ix] < 0) {
+						if (xx[i] == ss[ix]) {
+							a = 1.0;
+						} else {
+							a = xx[i] / (xx[i] - ss[ix]);
+						}
+						if (alpha > a) {	// ### ??? alpha selection is wrong...
+							alpha = a;
+						}
+					}
+					ix++;
+				}
+				for (i = ix = 0; i < n; i++) {
+					if (pp[i] == 0) continue;
+					xx[i] += (ss[ix] - xx[i]) * alpha;
+					if (fabs(xx[i]) < tol) {
+						pp[i] = 0;
+					}
+					ix++;
+				}
+				s = [AA solvePartial:b list:pp];
+				ss = [s data];
+			}
+	//	printf("outer = %d, inner = %d\n", outer, inner);
+			for (i = ix = 0; i < n; i++) {
+				if (pp[i] == 0) {
+					xx[i] = 0;
+					continue;
+				}
+				xx[i] = ss[ix];
+				ix++;
+			}
+			w = [[AA trans] multWithMat:[b subMat:[AA multWithMat:x]]];	// w = At (b - Ax)
+		}
+		// copy x to X
+		[X copyVec:x atCol:k];
+	}
+
+	return X;
+}
+
+- (NSDictionary *)svd	// returns dict with entry: "U", "S"(diag mat), "Vt"
+{
+	NumMatrix		*U, *S, *Vt;
+	NumVector		*sv;
+	float			*rwork, *cwork, *adata;
+	float			*p;
+	int				lwork, rworklen, info;
+	int				i, nr, nc, n, nrc, ld;
+
+	nr = nRow;
+	nc = nCol;
+	nrc = nr * nc;
+	ld = nr;
+	n = MIN(nr, nc);
+
+// alloc result matrices
+//	res = (Num_svd_result *)malloc(sizeof(Num_svd_result));
+	U  = [NumMatrix matrixOfType:type nRow:nr nCol:n];
+	Vt = [NumMatrix matrixOfType:type nRow:n nCol:nc];
+	sv  = [NumVector vectorOfType:type length:n];
+
+	if (type == NUM_REAL) {
+	// get work size
+		lwork = -1;
+		rwork = (float *)malloc(sizeof(float) * 1);
+		adata = (float *)malloc(sizeof(float) * nrc);
+		sgesvd_("S", "S", &nr, &nc, adata, &ld,
+			[sv data], [U data], &nr, [Vt data], &n,
+			rwork, &lwork, &info);
+		lwork = rwork[0];
+		free(rwork);
+
+		// printf("sizeof work area %d\n", lwork);
+		// copy A
+		p = [self data];
+		for (i = 0; i < nrc; i++) {
+			adata[i] = p[i];
+		}
+		// actual proc
+		rwork = (float *)malloc(sizeof(float) * lwork);
+		sgesvd_("S", "S", &nr, &nc, adata, &ld,
+			[sv data], [U data], &nr, [Vt data], &n, rwork,
+			&lwork, &info);
+		if (info != 0) {
+			printf("sgesvd info: %d\n", info);
+		}
+		free(rwork);
+		free(adata);
+	} else {	// NUM_COMPLEX
+	// get work size
+		rworklen = 2 * MIN(nr, nc) * MAX(nr, nc);
+		adata = (float *)malloc(sizeof(float) * nrc * 2);
+		lwork = -1;
+		rwork = (float *)malloc(sizeof(float) * rworklen);
+		cwork = (float *)malloc(sizeof(float) * 2);
+		cgesvd_("S", "S", &nr, &nc, (__CLPK_complex *)adata, &ld,
+			[sv data], (__CLPK_complex *)[U data], &nr, (__CLPK_complex *)[Vt data], &n,
+			(__CLPK_complex *)cwork, &lwork, rwork, &info);
+		lwork = cwork[0];
+		//printf("lwork[0] = %d\n", lwork);
+		free(cwork);
+
+		//printf("sizeof work area %d\n", lwork);
+		// actual proc
+		cwork = (float *)malloc(sizeof(float) * lwork * 2);
+		// copy A
+		p = [self data];
+		for (i = 0; i < nrc * 2; i++) {
+			adata[i] = p[i];
+		}
+		cgesvd_("S", "S", &nr, &nc, (__CLPK_complex *)adata, &ld,
+			[sv data], (__CLPK_complex *)[U data], &nr, (__CLPK_complex *)[Vt data], &n,
+			(__CLPK_complex *)cwork, &lwork, rwork, &info);
+		if (info != 0) {
+			printf("cgesvd info: %d\n", info);
+		}
+		free(rwork);
+		free(cwork);
+		free(adata);
+	}
+	// make diag mat
+	S = [sv diagMatrix];
+
+	// make dict
+	return [NSDictionary dictionaryWithObjectsAndKeys:U, @"U", S, @"S", Vt, @"Vt", nil];
+}
+
+- (NSDictionary *)icaForNC:(int)nc	// returns dict with entry: "XW", "Y", "U", "Vt"
+{
+	NSDictionary	*res;
+	int				n, p;
+	int				i;
+
+	NumMatrix		*A;					// [n,  p]
+	NumMatrix		*U;					// [n, nc]
+	NumMatrix		*X;					// [n, nc]
+	NumMatrix		*Y;					// [nc, p]
+	NumMatrix		*W, *W1;			// [nc,nc]
+	NumMatrix		*XW;				// [n, nc]
+	float			*px;
+	NumMatrix		*g1, *g2;			// [n, nc]
+	float			*p1, *p2;
+	NumMatrix		*V1, *V2;			// [nc,nc]
+	NumMatrix		*Sg, *Sc, *St;			// [nc,nc], sigma, scale, sort
+	NumMatrix		*Vtnc;				// [nc, p]
+	NumMatrix		*tmpMat;
+	float			alpha = 5.0;
+	
+	int				iter, maxIter = 1000;
+	float			lim, tmp, tol = 1.0e-5;
+
+	n = nRow;	// number of samples
+	p = nCol;	// number of pixels
+
+	A = [self colCenter];
+	res = [A svd];
+	U = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
+	[U copyMatrix:[res objectForKey:@"U"]];
+
+	Sg = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:nc];
+	[Sg copyMatrix:[res objectForKey:@"S"]];
+
+	X = [U multWithConst:sqrt([U nRow])];	// SD along col = 1.0
+	X = [X multWithMat:Sg];
+
+	W = [NumMatrix unitMatrixOfDim:nc];
+//	[W normal]; W = [W orthog];
+	g1 = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
+	g2 = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
+	p1 = [g1 data];
+	p2 = [g2 data];
+
+	for (iter = 0; iter < maxIter; iter++) {
+		XW = [X multWithMat:W];
+		// normalize rows of XW
+		XW = [XW colNorm];	// ### -> expand to calc Sc & St
+
+
+		px = [XW data];
+	//	g1 = tanh(alpha * x)
+	//	g2 = 1 / cosh(alpha * x)
+		for (i = 0; i < [g1 len]; i++) {
+			p1[i] = tanh(alpha * px[i]);
+			p2[i] = 1 / cosh(alpha * px[i]);
+		}
+	// V1 <- gxw %*% t(X)/p
+		V1 = [[[X trans] multWithMat:g1] multWithConst:1.0/p];
+	// V2 <= Diag(apply(g.wx, 1, FUN = mean) %*% W
+		tmpMat = [[g2 colMean] diagMatrix];
+		V2 = [W multWithMat:tmpMat];
+		W1 = [V1 subMat:V2];
+		W1 = [W1 orthog];
+
+	// lim <- max(Mod(Mod(diag(W1 %*% t(W))) - 1))
+		tmpMat = [W multWithMat:[W1 trans]];
+		px = [tmpMat data];
+		lim = 0;
+		for (i = 0; i < nc; i++) {
+			tmp = fabs(fabs(px[i * nc + i]) - 1);
+			if (tmp > lim) lim = tmp;
+		}
+//printf("%d %e\n", iter, lim);
+		if (lim < tol) break;
+		W = W1;
+	}
+
+	// calc "Y"
+	Vtnc = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:p];
+	[Vtnc copyMatrix:[res objectForKey:@"Vt"]];
+	
+//[Snc saveAsKOImage:@"IMG_Snc"];
+//	Y = [[[W trans] multWithMat:Sg] multWithMat:Vtnc];
+	Y = [[W trans] multWithMat:Vtnc];
+//[Y saveAsKOImage:@"IMG_Y"];
+
+	return [NSDictionary dictionaryWithObjectsAndKeys:
+				XW, @"XW", Y, @"Y", U, @"U", Vtnc, @"Vt", nil];
+}
+
+// RecImage
+- (RecImage *)toRecImage
+{
+	RecImage	*img;
+	int			i_type;
+	int			i, j;
+	float		*p, *q;
+
+	switch (type) {
+	case NUM_REAL :
+		i_type = RECIMAGE_REAL;
+		break;
+	case NUM_COMPLEX :
+		i_type = RECIMAGE_COMPLEX;
+		break;
+	}
+	img = [RecImage imageOfType:i_type xDim:nCol yDim:nRow];
+	q = [img data];
+	p = [self data];
+	for (i = 0; i < nCol; i++) {
+		for (j = 0; j < nRow; j++) {
+			q[j * nCol + i] = p[i * nRow + j];
+		}
+	}
+	if (type == NUM_COMPLEX) {
+		q = [img imag];
+		p = [self imag];
+		for (i = 0; i < nCol; i++) {
+			for (j = 0; j < nRow; j++) {
+				q[j * nCol + i] = p[i * nRow + j];
+			}
+		}
+	}
+	return img;
+}
+
+- (void)saveAsKOImage:(NSString *)path
+{
+	RecImage	*img = [self toRecImage];
+	[img saveAsKOImage:path];
+}
+
+- (void)copyImage:(RecImage *)img
+{
+	float	*p, *q;
+	int		i, j;
+
+	q = [img data];
+	p = [self data];
+	for (i = 0; i < nCol; i++) {
+		for (j = 0; j < nRow; j++) {
+			p[i * nRow + j] = q[j * nCol + i];
+		}
+	}
+	if (type == NUM_COMPLEX) {
+		q = [img imag];
+		p = [self imag];
+		for (i = 0; i < nCol; i++) {
+			for (j = 0; j < nRow; j++) {
+				p[i * nRow + j] = q[j * nCol + i];
+			}
+		}
+	}
+}
+
+- (void)dump
+{
+    int     c, r, ix;
+	int		nc = nCol < 10 ? nCol : 10;
+	int		nr = nRow < 10 ? nRow : 10;
+
+	switch (type) {
+	case NUM_REAL :
+	default :
+		printf("=== real matrix[%d][%d] ====\n", nRow, nCol);
+		for (r = 0; r < nr; r++) {
+			for (c = 0; c < nc; c++) {
+			//	ix = Num_col_m_index(m, c, r);
+				ix = c * nRow + r;
+				printf("%6.5f ", [self data][ix]);
+			}
+			printf("\n");
+		}
+		break;
+	case NUM_COMPLEX :
+		printf("=== complex matrix[%d][%d] ====\n", nRow, nCol);
+		for (r = 0; r < nr; r++) {
+			for (c = 0; c < nc; c++) {
+				ix = (r * nRow + c) * 2;
+				printf("(%5.2f, %5.2fi)", [self data][ix], [self data][ix + 1]);
+			}
+			printf("\n");
+		}
+		break;
+	}
+}
 
 @end
 
@@ -365,8 +1241,8 @@ Num_copy_im_to_m(Num_mat *m, RecImage *im)
 
 	if (m->type == NUM_REAL) {
 		p = [im data];
-		for (c = 0; c < m->nc; c++) {	// x
-			for (r = 0; r < m->nr; r++) {	// y
+		for (c = 0; c < m->nc; c++) {	// x, col
+			for (r = 0; r < m->nr; r++) {	// y, row
 				ixc = c * m->nr + r;
 				ixr = r * m->nc + c;
 				m->data[ixc] = p[ixr];
@@ -635,12 +1511,14 @@ Num_vsma(Num_vec *x, float a, Num_vec *y)    // y = ax + y
 }
 
 // ### real only
+// ### need separate func for complex version (need to return complex number)
 float
 Num_dotpr(Num_vec *v1, Num_vec *v2)
 {
     float   sum;
 
 	if (v1->type == NUM_COMPLEX || v2->type == NUM_COMPLEX) {
+		// ### use cblas_cdotc()
 		Num_error("dotpr is real only");
 		return 0;
 	}
@@ -888,32 +1766,50 @@ Num_hermit(Num_mat *b, Num_mat *a)						// B = At, A:mxn, B:nxm
 	}
 }
 
+// ### add suport for not-equally-sized mat using copy_sub_mat
 void
 Num_copy_mat(Num_mat *b, Num_mat *a)         // B <- A
 {
-	int		i, n;
+	int		i, j, n;
+	int		nr, nc, na, nb;
 // chk header
 	if (a->type != b->type) {
 		Num_error("Num_copy: type mismatch");
 	}
-	if (a->nr * a->nc != b->nr * b->nc) {
-		Num_error("Num_copy: size mismatch");
-	}
-	switch (a->type) {
-	case NUM_REAL :
-		n = a->nr * a->nc;
-		break;
-	case NUM_COMPLEX :
-		n = a->nr * a->nc * 2;
-		break;
-	}
-	for (i = 0; i < n; i++) {
-		b->data[i] = a->data[i];
+	if (a->nr == b->nr && a->nc == b->nc) {
+		switch (a->type) {
+		case NUM_REAL :
+			n = a->nr * a->nc;
+			break;
+		case NUM_COMPLEX :
+			n = a->nr * a->nc * 2;
+			break;
+		}
+		for (i = 0; i < n; i++) {
+			b->data[i] = a->data[i];
+		}
+	} else {
+		nr = MIN(a->nr, b->nr);
+		nc = MIN(a->nc, b->nc);
+		na = a->nr * a->nc;
+		nb = b->nr * b->nc;
+		for (i = 0; i < nc; i++) {
+			for (j = 0; j < nr; j++) {
+				b->data[i * b->nr + j] = a->data[i * a->nr + j];
+			}
+		}
+		if (a->type == NUM_COMPLEX) {
+			for (i = 0; i < nc; i++) {
+				for (j = 0; j < nr; j++) {
+					b->data[i * b->nr + j + nb] = a->data[i * a->nr + j + na];
+				}
+			}
+		}
 	}
 }
 
 void
-Num_copy_sub_mat(Num_mat *b, Num_mat *a, int r0, int rn, int c0, int cn)
+Num_copy_sub_mat(Num_mat *b, Num_mat *a, int r0, int rn, int c0, int cn)	// B <- A
 {
 	int		i, j, na, nb;
 // chk header
@@ -965,36 +1861,6 @@ Num_row_vec(Num_vec *x, Num_mat *A, int ix)	// copy i-th row-v of A
 	for (i = 0; i < x->n; i++) {
 		x->data[i] = A->data[i * A->nr + ix];
 	}
-}
-
-void
-Num_pinv(Num_mat *b, Num_mat *a)             // B = A+, A:mxn, B:nxm
-{
-    int     m, n;
-    Num_mat *at, *att;
-
-    m = a->nr, n = a->nc;
-    if (m == n) {   // square
-        Num_copy_mat(b, a);
-        Num_gaussj(b, NULL);
-    } else
-    if (m > n) {    // more eq than unk -> LS
-        at = Num_trans(a);
-        att = Num_new_mat(n, n);
-        Num_mmul(att, at, a);   // ATT = At A
-        Num_gaussj(att, NULL);        // (At A)-1
-        Num_mmul(b, att, at);   // B = (At A)-1 At
-        Num_free_mat(at);
-        Num_free_mat(att);
-    } else {        // more unk than eq -> min norm
-        at = Num_trans(a);
-        att = Num_new_mat(m, m);
-        Num_mmul(att, a, at);   // ATT = A * At
-        Num_gaussj(att, NULL);        // (A At)-1
-        Num_mmul(b, at, att);   // B = At (A At)-1
-        Num_free_mat(at);
-        Num_free_mat(att);
-    }
 }
 
 void
@@ -1153,7 +2019,7 @@ Num_svd_ref(Num_mat *A, Num_mat *U, Num_vec *s, Num_mat *Vt)
 		lwork = rwork[0];
 		free(rwork);
 
-		//printf("sizeof work area %d\n", lwork);
+		// printf("sizeof work area %d\n", lwork);
 		// actual proc
 		rwork = (float *)malloc(sizeof(float) * lwork);
 		// copy A
@@ -1163,6 +2029,9 @@ Num_svd_ref(Num_mat *A, Num_mat *U, Num_vec *s, Num_mat *Vt)
 		sgesvd_("S", "S", &nr, &nc, adata, &ld,
 			s->data, U->data, &U->ld, Vt->data, &Vt->ld, rwork,
 			&lwork, &info);
+		if (info != 0) {
+			printf("sgesvd info: %d\n", info);
+		}
 		free(rwork);
 		free(adata);
 	} else {	// NUM_COMPLEX
@@ -1189,30 +2058,73 @@ Num_svd_ref(Num_mat *A, Num_mat *U, Num_vec *s, Num_mat *Vt)
 		cgesvd_("S", "S", &nr, &nc, (__CLPK_complex *)A->data, &ld,
 			s->data, (__CLPK_complex *)U->data, &U->ld, (__CLPK_complex *)Vt->data, &Vt->ld,
 			(__CLPK_complex *)cwork, &lwork, rwork, &info);
+		if (info != 0) {
+			printf("cgesvd info: %d\n", info);
+		}
 		free(rwork);
 		free(cwork);
 		free(adata);
 	}
 }
 
-// 
+// solve linear equation (solution is returned in X. A and B are preserved.)
 int
-Num_inv(Num_mat *A, Num_mat *B)
+Num_inv(Num_mat *X, Num_mat *A, Num_mat *B)
 {
-	int		n, nrhs;
+	int		m, n, nrhs;
 	int		lda, ldb, info;
 	int		*ipiv;
+	float	*work;
+	int		lwork;
+	Num_mat	*AA, *BB;	// copy mat first. both AA & BB are overwritten by LAPACK
 
+	m = A->nr;
 	n = A->nc;
+	lda = m;
+	ldb = MAX(m, n);
 	nrhs = B->nc;
-	lda = A->nr;
-	ldb = B->nr;
-	ipiv = (int *)malloc(sizeof(int) * n);
 
-	sgesv_(&n, &nrhs, A->data, &lda, ipiv, B->data, &ldb, &info);
+	// copy
+	AA = Num_new_mat(A->nr, A->nc);
+	BB = Num_new_mat(ldb, B->nc);
+	Num_copy_mat(AA, A);
+	Num_copy_mat(BB, B);		// works for mat with not equal sizes
+	if (m == n) {
+		ipiv = (int *)malloc(sizeof(int) * n);
+		sgesv_(&n, &nrhs, AA->data, &lda, ipiv, BB->data, &ldb, &info);
+		// copy output to B
+		Num_copy_mat(X, BB);
+		free(ipiv);
+	} else {
+		work = (float *)malloc(sizeof(float) * 1);
+		lwork = -1;
+		sgels_("N", &m, &n, &nrhs, AA->data, &lda, BB->data, &ldb, work, &lwork, &info);
+		lwork = work[0];
+		free(work);
+		work = (float *)malloc(sizeof(float) * lwork);
+		sgels_("N", &m, &n, &nrhs, AA->data, &lda, BB->data, &ldb, work, &lwork, &info);
+		free(work);
+		Num_copy_mat(X, BB);
+	}
+	Num_free_mat(AA);
+	Num_free_mat(BB);
 
-	free(ipiv);
 	return info;
+}
+
+float
+Num_max_val(Num_mat *m, int *ix)
+{
+	int		i;
+	float	mx = 0;
+
+	for (i = 0; i < m->nr * m->nc; i++) {
+		if (m->data[i] > mx) {
+			mx = m->data[i];
+			*ix = i;
+		}
+	}
+	return mx;
 }
 
 Num_svd_result *
@@ -1246,34 +2158,14 @@ Num_svd(Num_mat *A)
 {
 	Num_svd_result	*res;
 
-/*
-	int				nc, nr, n;
-
-	// dim
-	nc = A->nc;
-	nr = A->nr;
-	n = MIN(nr, nc);
-
-	// alloc res struct
-	res = (Num_svd_result *)malloc(sizeof(Num_svd_result));
-	if (A->type == NUM_REAL) { // real mat
-		res->U  = Num_new_mat(nr, n);
-		res->Vt = Num_new_mat(n, nc);
-		res->s  = Num_new_vec(n);
-	} else {				// complex mat
-		res->U  = Num_new_cmat(nr, n);
-		res->Vt = Num_new_cmat(n, nc);
-		res->s  = Num_new_cvec(n);
-	}
-*/
 	res = Num_new_svd_result(A);
 
 	// call ref
 	Num_svd_ref(A, res->U, res->s, res->Vt);
 
 	// negate U & Vt
-	Num_negate_mat(res->U);
-	Num_negate_mat(res->Vt);
+//	Num_negate_mat(res->U);
+//	Num_negate_mat(res->Vt);
 
 	return res;
 }
@@ -2045,6 +2937,20 @@ Num_rk4(float *x, float *y, float (^deriv)(float x, float y), float step)
     *y += step / 6.0 * (k1 + k2 * 2 + k3 * 2 + k4);
 }
 
+// 
+float
+Num_rk4_area(float (^deriv)(float x, float y), float st, float ed, int n)    // not tested yet
+{
+	float	x, y, dx;
+	int		i;
+
+	x = st;
+	dx = (ed - st) / n;
+	for (i = 0; i < n; i++) {
+		Num_rk4(&x, &y, deriv, dx);
+	}
+	return y;
+}
 
 //======== dbg =============
 void
@@ -2058,13 +2964,13 @@ dump_vec(Num_vec *v)
 	default :
 		printf("=== real vector[%d] ====\n", v->n);
 		for (i = 0; i < v->n; i++) {
-			printf(" %3.2e\n", v->data[i]);
+			printf(" %5.4e\n", v->data[i]);
 		}
 		break;
 	case NUM_COMPLEX :
 		printf("=== complex vector[%d] ====\n", v->n);
 		for (i = 0; i < n; i++) {
-			printf(" (%3.2e %3.2ei)\n", v->data[i*2], v->data[i*2 + 1]);
+			printf(" (%5.4e %5.4ei)\n", v->data[i*2], v->data[i*2 + 1]);
 		}
 		break;
 	}
@@ -2083,12 +2989,12 @@ dump_mat(Num_mat *m)
 	default :
 		printf("=== real matrix[%d][%d] ====\n", m->nr, m->nc);
 		if (m->order == NUM_COL_MAJOR) {
-			printf("(stored in column major order\n");
+			printf("(stored in col major order\n");
 			for (r = 0; r < nr; r++) {
 				for (c = 0; c < nc; c++) {
 				//	ix = Num_col_m_index(m, c, r);
-					ix = r * m->nc + c;
-					printf("%5.2f ", m->data[ix]);
+					ix = c * m->nr + r;
+					printf("%6.5e ", m->data[ix]);
 				}
 				printf("\n");
 			}
@@ -2098,8 +3004,8 @@ dump_mat(Num_mat *m)
 			ix = 0;
 			for (r = 0; r < nr; r++) {
 				for (c = 0; c < nc; c++) {
-					ix = c * m->nr + r;
-					printf("%5.2f ", m->data[ix]);
+					ix = r * m->nc + c;
+					printf("%6.5e ", m->data[ix]);
 					ix++;
 				}
 				printf("\n");
