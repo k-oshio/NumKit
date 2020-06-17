@@ -2282,6 +2282,7 @@ Num_col_norm(Num_mat *a)
 	}
 }
 
+// remove mean for each col
 void
 Num_col_center(Num_mat *a)
 {
@@ -2290,9 +2291,9 @@ Num_col_center(Num_mat *a)
 	int		nc = a->nc;
 	float	m;
 
-	for (i = 0; i < nc; i++) {
+	for (i = 0; i < nc; i++) {  // row direction
 		m = 0;
-		for (j = 0; j < nr; j++) {
+		for (j = 0; j < nr; j++) {  // col direction
 			m += a->data[i * nr + j];
 		}
 		m /= nr;
@@ -2439,20 +2440,22 @@ copy_mat_to_img(Num_mat *m, RecImage *img) {
 	[img copyImageData:tmp_img];
 }
 
-//======================== preserve until successfull port
-Num_svd_result *
-Num_ica_ref(Num_mat *X, int ncomp, int maxiter)
+//=========== preserve until successfull port -> don't touch
+Num_ica_result *
+Num_ica_ref(Num_mat *X, int ncomp)
 {
-	Num_svd_result	*ires;	
+	Num_ica_result	*ires;	
 	Num_svd_result	*sres;	
 	int				n, p, ncn, ncnc;
 	int				i, j;
 	int				iter;
+    int             maxiter = 2000;
 	double			tol;
 
+    // ncol x nrow, p:channels, pixels, n:time, observations
 	Num_mat			*Xt;				// p x n
 	Num_mat			*V, *D, *K, *U;		// p x p
-	Num_mat			*K1;				// ncomp x p	### chk
+	Num_mat			*K1;				// ncomp x p
 	Num_mat			*X1;				// ncomp x n
 	Num_mat			*tmp_mat;			// n x ncomp
 	Num_mat			*WX, *gWX;			// n x ncomp
@@ -2462,13 +2465,16 @@ Num_ica_ref(Num_mat *X, int ncomp, int maxiter)
 	double			tmp;
 	
 	BOOL			row_norm = NO;
+    BOOL            dbg = YES;
 //	float			alpha = 1.0;
 
+    // input
 	n = X->nr;	// n row (observations)
 	p = X->nc;	// p column (pixels)
 
-	saveAsKOImage(X, @"IMG_X");
-
+    if (dbg) {
+        saveAsKOImage(X, @"IMG_X");
+    }
 
 //	w.init <- matrix(rnorm(n.comp^2, n.comp, n.comp)
 	W = Num_new_mat(ncomp, ncomp);
@@ -2542,7 +2548,6 @@ saveAsKOImage(X1, @"IMG_X1");
 	maxiter = 100;
 
 // while (lim(it] > tol && it < maxit) {
-//	float	alpha = 1.0;
 	for (iter = 0; iter < maxiter; iter++) {
 		// wx <- W %*% X
 		Num_mmul(WX, W, X1);
@@ -2623,14 +2628,15 @@ saveAsKOImage(tmp_mat, @"IMG_tol");
 saveAsKOImage(WX, @"IMG_out");
 
 // sort/set U, s, Vt
-	ires = (Num_svd_result *)malloc(sizeof(Num_ica_result));
-	ires = (Num_svd_result *)malloc(sizeof(Num_svd_result));
-	ires->U  = Num_new_mat(ncomp, ncomp);	// W
-	ires->Vt = Num_new_mat(n, ncomp);		// WX
-	ires->s  = Num_new_vec(ncomp);
+	ires = (Num_ica_result *)malloc(sizeof(Num_ica_result));
+//	ires = (Num_svd_result *)malloc(sizeof(Num_svd_result));
+	ires->W  = Num_new_mat(ncomp, ncomp);	// unmixing mat
+    ires->WX = Num_new_mat(n, ncomp);       // time course
+    ires->WK = Num_new_mat(p, ncomp);       // map
 
-	Num_copy_mat(ires->U, W);
-	Num_trans_ip(ires->Vt, WX);
+	Num_copy_mat(ires->W, W);
+	Num_copy_mat(ires->WX, Num_trans(WX));
+ // WK not set yet ####   
 
 // free mem (chk ###)
 	Num_free_mat(Xt);
@@ -2649,245 +2655,226 @@ saveAsKOImage(WX, @"IMG_out");
 //========================
 // 2nd attempt
 Num_ica_result *
-Num_ica(Num_mat *X, int ncomp)
+Num_ica_2(Num_mat *X, int ncomp)
 {
-	Num_ica_result	*ires;	
-	Num_svd_result	*sres;
-	int				n, p, ncn, ncnc;
-	int				i, j;
-	int				iter;
-	double			tol;
+    Num_ica_result    *ires;    
+    Num_svd_result    *sres;    
+    int                n, p, ncn, ncnc;
+    int                i, j;
+    int                iter;
+    int             maxiter = 2000;
+    double            tol;
 
-	Num_mat			*Xt;				// p x n
-	Num_mat			*V, *D, *U;			// p x p
-	Num_mat			*K;					// p x p
-	Num_mat			*K1;				// ncomp x p
-	Num_mat			*X1;				// ncomp x n
-	Num_mat			*tmp_mat;			// n x ncomp
-	Num_mat			*WX, *gWX;			// n x ncomp
-	Num_mat			*W;					// ncomp x ncomp
-	Num_mat			*V1, *V2;			// ncomp x ncomp
-	Num_mat			*W1;				// ncomp x ncomp
-	double			tmp;
-	
-	int				maxiter = 2000;
-	BOOL			row_norm = NO;
-	BOOL			covariance = NO;
-	float			alpha = 1.0;
+    // ncol x nrow, p:channels, pixels, n:time, observations
+    Num_mat            *Xt;                // p x n
+    Num_mat            *V, *D, *K, *U;        // p x p
+    Num_mat            *K1;                // ncomp x p
+    Num_mat            *X1;                // ncomp x n
+    Num_mat            *tmp_mat;            // n x ncomp
+    Num_mat            *WX, *gWX;            // n x ncomp
+    Num_mat            *W;                    // ncomp x ncomp
+    Num_mat            *V1, *V2;            // ncomp x ncomp
+    Num_mat            *W1;                // ncomp x ncomp
+    double            tmp;
+    
+    BOOL            row_norm = NO;
+    BOOL            dbg = YES;
+//    float            alpha = 1.0;
 
-	n = X->nr;	// n row (observations)
-	p = X->nc;	// p column (pixels)
+    // input
+    n = X->nr;    // n row (observations)
+    p = X->nc;    // p column (pixels)
+
+    if (dbg) {
+        saveAsKOImage(X, @"IMG_X");
+    }
+
+//    w.init <- matrix(rnorm(n.comp^2, n.comp, n.comp)
+    W = Num_new_mat(ncomp, ncomp);
+    for (i = 0; i < ncomp * ncomp; i++) {
+        W->data[i] = Num_nrml(0.0, 1.0);
+    }
 
 // === if (method == "R"_ =====
-//	X <- scale(X, scale = FALSE)
-	Num_col_center(X);		// X <- scale(X, scale = FALSE)
+//    X <- scale(X, scale = FALSE)
+    Num_col_center(X);        // X <- scale(X, scale = FALSE)
+    saveAsKOImage(X, @"IMG_Xcenter");
 
-//	X <- if (row.norm) t(scale(X, scale = row.snorm)) else t(X)
-	Xt = Num_trans(X);
-	if (row_norm) {
-	//	Num_row_center(X);
-		Num_row_norm(X);
-		Num_trans_ip(Xt, X);
-	}
+//    X <- if (row.norm) t(scale(X, scale = row.snorm)) else t(X)
+    Xt = Num_trans(X);
+    if (row_norm) {
+        Num_row_center(X);
+        Num_row_norm(X);
+        Num_trans_ip(Xt, X);
+    }
+//    V <- X %*% t(X) / n
+    V = Num_new_mat(p, p);
+    Num_mmul(V, Xt, X);
+    Num_mmul_const(V, 1.0/n);
 
-	if (covariance) {	// orthogonalize X using cov matrix
-	//	V <- X %*% t(X) / n
-		V = Num_new_mat(p, p);
-		Num_mmul(V, Xt, X);
-		Num_mmul_const(V, 1.0/n);
+// s <- La.svd(V)
+    sres = Num_svd(V);
 
-	// s <- La.svd(V)
-		sres = Num_svd(V);
+// D <- diag(c(1/sqrt(s$d)))
+    D = Num_new_mat(p, p);
+    for (i = 0; i < p; i++) {
+        D->data[i * p + i] = 1.0 / sqrt(sres->s->data[i]);
+    }
+// K <- D %*% t(s$u)
+    K = Num_new_mat(p, p);
+    U = Num_trans(sres->U);
+    Num_mmul(K, D, U);
+// K <- matrix(K[1:n.comp, ], n.comp, p)
+// ncomp != p case is not tested yet
+    K1 = Num_new_mat(ncomp, p);
+    for (i = 0; i < ncomp; i++) {
+        for (j = 0; j < p; j++) {
+            K1->data[i * ncomp + j] = K->data[i * p + j];
+        }
+    }
+//saveAsKOImage(K, @"IMG_K");
+//saveAsKOImage(K1, @"IMG_K1");
 
-	// D <- diag(c(1/sqrt(s$d)))
-		D = Num_new_mat(p, p);
-		for (i = 0; i < p; i++) {
-			D->data[i * p + i] = 1.0 / sqrt(sres->s->data[i]);
-		}
-	// K <- D %*% t(s$u)
-		K = Num_new_mat(p, p);
-		U = Num_trans(sres->U);
-		Num_mmul(K, D, U);
-	// K <- matrix(K[1:n.comp, ], n.comp, p)
-	// ncomp != p case is not tested yet
-		K1 = Num_new_mat(ncomp, p);
-		for (i = 0; i < ncomp; i++) {
-			for (j = 0; j < p; j++) {
-				K1->data[i * ncomp + j] = K->data[i * p + j];
-			}
-		}
-		Num_free_mat(K);
-	// X1 <- K %x% X
-		X1 = Num_new_mat(ncomp, n);
-		Num_mmul(X1, K1, Xt);
-//		saveAsKOImage(X1, @"IMG_X1");
-	} else {	// ========== use direct SVD to X ==========
-		sres = Num_svd(X);
+// X1 <- K %x% X
+    X1 = Num_new_mat(ncomp, n);
+    Num_mmul(X1, K1, Xt);
 
-		K1 = Num_new_mat(ncomp, p);	// ok
-	//	K = Num_new_mat(n, p);	// first, chk full rank version
-	//	Num_copy_mat(K, sres->Vt);
-	// use top ncomp entries
-		for (i = 0; i < ncomp; i++) {
-			for (j = 0; j < p; j++) {
-				K1->data[j * ncomp + i] = sres->Vt->data[j * n + i] / sres->s->data[i];
-			}
-		}
-		X1 = Num_new_mat(ncomp, n);
-		Num_mmul(X1, K1, Xt);
-
-// scale X1 (to have variance of 1.0)
-		alpha = 1.0;
-		tmp = 0;
-		for (i = 0; i < ncomp * n; i++) {
-			tmp += X1->data[i] * X1->data[i];
-		}
-		tmp /= (ncomp * n);
-		tmp = sqrt(tmp);
-		tmp = 50.0 / tmp;	// sd = 10.0 ???
-		for (i = 0; i < ncomp * n; i++) {
-			X1->data[i] *= tmp;
-		}
-
-		saveAsKOImage(X1, @"IMG_X1");
-		saveAsKOImage(K1, @"IMG_K1");
-	}
-
-// if (fun == "exp")
-
-//	w.init <- matrix(rnorm(n.comp^2, n.comp, n.comp)
-	W = Num_new_mat(ncomp, ncomp);
-//	for (i = 0; i < ncomp * ncomp; i++) {
-//		W->data[i] = Num_nrml(0.0, 1.0);
-//	}
-	// or
-	Num_unit_mat(W);
-//	for (i = 0; i < ncomp * ncomp; i++) {
-//		W->data[i] += Num_nrml(0.0, 1.0) * 0.2;
-//	}
+saveAsKOImage(X1, @"IMG_X1");
 
 // ica.R.par()
 // W <- w.init
 // sW <- La.svd(W)
 // W <- sW$u %*% Diag(1/sW$d) %*% t(sW$u) %*% W
-	Num_orth_mat(W);
+    Num_orth_mat(W);
 
+// if (fun == "exp")
 
 // fixed point iteration
-	WX  = Num_new_mat(ncomp, n);
-	gWX = Num_new_mat(ncomp, n);
-	V1 = Num_new_mat(ncomp, ncomp);
-	V2 = Num_new_mat(ncomp, ncomp);
-	W1 = Num_new_mat(ncomp, ncomp);
-	tmp_mat = Num_new_mat(ncomp, ncomp);
-	ncn = ncomp * n;
-	ncnc = ncomp * ncomp;
+    WX  = Num_new_mat(ncomp, n);
+    gWX = Num_new_mat(ncomp, n);
+    V1 = Num_new_mat(ncomp, ncomp);
+    V2 = Num_new_mat(ncomp, ncomp);
+    W1 = Num_new_mat(ncomp, ncomp);
+    tmp_mat = Num_new_mat(ncomp, ncomp);
+    ncn = ncomp * n;
+    ncnc = ncomp * ncomp;
+    maxiter = 100;
 
 // while (lim(it] > tol && it < maxit) {
-	for (iter = 0; iter < maxiter; iter++) {
-		// wx <- W %*% X
-		Num_mmul(WX, W, X1);
+    for (iter = 0; iter < maxiter; iter++) {
+        // wx <- W %*% X
+        Num_mmul(WX, W, X1);
+saveAsKOImage(WX, @"IMG_WX");
 
-		// gwx <- wx * exp(-wx^2)/2)
-		for (i = 0; i < ncn; i++) {
-			tmp = WX->data[i];
-			// exp (faster)
-		//	gWX->data[i] = tmp * exp(-(tmp *tmp)/2);				
-			// logcosh
-			gWX->data[i] = tanh(alpha * tmp);
-		}
-		// V1 = gWX * Xt / p
-		Num_mtmul(V1, gWX, NO, X1, YES);
-		for (i = 0; i < ncnc; i++) {
-			V1->data[i] /= p;
-		}
-		// g.wx <- (1 - wx^2) * exp(-(wx^2)/2)
-		for (i = 0; i < ncn; i++) {
-			tmp = WX->data[i];
-			// exp (faster)
-		//	gWX->data[i] = (1 - tmp*tmp) * exp(-(tmp*tmp)/2);
-			// logcosh
-			tmp = gWX->data[i];
-			gWX->data[i] = alpha * (1 - (tmp * tmp));
-		}
+        // gwx <- wx * exp(-wx^2)/2)
+        for (i = 0; i < ncn; i++) {
+            tmp = WX->data[i];
+            // exp (faster)
+            gWX->data[i] = tmp * exp(-(tmp *tmp)/2);                
+            // logcosh
+        //    gWX->data[i] = tanh(alpha * tmp);
+        }
+        // V1 = gWX * Xt / p
+        Num_mtmul(V1, gWX, NO, X1, YES);
+        for (i = 0; i < ncnc; i++) {
+            V1->data[i] /= p;
+        }
+saveAsKOImage(V1, @"IMG_V1");
+        // g.wx <- (1 - wx^2) * exp(-(wx^2)/2)
+        for (i = 0; i < ncn; i++) {
+            tmp = WX->data[i];
+            // exp (faster)
+            gWX->data[i] = (1 - tmp*tmp) * exp(-(tmp*tmp)/2);
+            // logcosh
+        //    gWX->data[i] = alpha * (1 - (tanh(alpha * tmp)) * (tanh(alpha * tmp)));
+        }
 
-		// V2 <- Diag(apply(g.wx, 1, FUN = mean)) %*% W
-		Num_clear_mat(tmp_mat);
-		for (i = 0; i < ncomp; i++) {	// row
-			tmp = 0;
-			for (j = 0; j < n; j++) {	// col
-				tmp += gWX->data[i + j * ncomp];
-			}
-			tmp /= n;
-			tmp_mat->data[i * ncomp + i] = tmp;
-		}
-		Num_mmul(V2, tmp_mat, W);
-		// W1 <- V1 - V2
-		for (i = 0; i < ncnc; i++) {
-			W1->data[i] = V1->data[i] - V2->data[i];	// need to preserve V1 ###
-		}
-		// make orthogonal
-		// sW1 <- La.svd(W1)
-		// W1 <- sW1$u %*% Diag*1/sW1$d) %*% t(sW1%u) %*% W1
-		Num_orth_mat(W1);	// #### chk
-				
-		// calc tol (V1 * Wt)
-		Num_mtmul(tmp_mat, W1, NO, W, YES);
+        // V2 <- Diag(apply(g.wx, 1, FUN = mean)) %*% W
+        Num_clear_mat(tmp_mat);
+        for (i = 0; i < ncomp; i++) {    // row
+            tmp = 0;
+            for (j = 0; j < n; j++) {    // col
+                tmp += gWX->data[i + j * ncomp];
+            }
+            tmp /= n;
+            tmp_mat->data[i * ncomp + i] = tmp;
+        }
+saveAsKOImage(tmp_mat, @"IMG_diag");
 
-		tmp = 0;
-		for (i = 0; i < ncomp; i++) {
-			if (fabs(1 - fabs(tmp_mat->data[i * ncomp + i])) > tmp) {
-				tmp = fabs(1 - fabs(tmp_mat->data[i * ncomp + i]));
-			}
-		}
-		tol = tmp;
-printf("%d %10.3e\n", iter, tol);
+        Num_mmul(V2, tmp_mat, W);
+saveAsKOImage(V2, @"IMG_V2");
+        // W1 <- V1 - V2
+        for (i = 0; i < ncnc; i++) {
+            W1->data[i] = V1->data[i] - V2->data[i];    // need to preserve V1 ###
+        }
+saveAsKOImage(V1, @"IMG_V12");
+        // make orthogonal
+        // sW1 <- La.svd(W1)
+        // W1 <- sW1$u %*% Diag*1/sW1$d) %*% t(sW1%u) %*% W1
+        Num_orth_mat(W1);    // #### chk
+saveAsKOImage(V1, @"IMG_V12o");
+                
+        // calc tol (V1 * Wt)
+        Num_mtmul(tmp_mat, W1, NO, W, YES);
+saveAsKOImage(tmp_mat, @"IMG_tol");
 
-		Num_copy_mat(W, W1);
+        tmp = 0;
+        for (i = 0; i < ncomp; i++) {
+            if (fabs(1 - fabs(tmp_mat->data[i * ncomp + i])) > tmp) {
+                tmp = fabs(1 - fabs(tmp_mat->data[i * ncomp + i]));
+            }
+        }
+        tol = tmp;
+        printf("%d %10.3e\n", iter, tol);
 
-		if (tol < 1.0e-6) break;	// 1.0e-7 doesn't work
-	}	// iteration
+        Num_copy_mat(W, W1);
 
-// make U, s, Vt equivalent
-	ires = (Num_ica_result *)malloc(sizeof(Num_ica_result));
-	ires->W = Num_new_mat(ncomp, ncomp);
-	ires->WX = Num_new_mat(ncomp, n);
-	ires->WK = Num_new_mat(ncomp, p);
+        if (tol < 1.0e-6) break;
+    }    // iteration
 
-	// U
-	Num_mmul(ires->WX, W, X1);
+// Wout
+    saveAsKOImage(W, @"IMG_Wout");
+// WX
+    Num_mmul(WX, W, X1);
+//copy_mat_to_img(WX, img);
+//[img saveAsKOImage:@"IMG_out"];
+saveAsKOImage(WX, @"IMG_out");
 
-	// scale K1 (back to Vt)
-	for (i = 0; i < ncomp; i++) {
-		for (j = 0; j < p; j++) {
-			K1->data[j * ncomp + i] *= sres->s->data[i];
-		}
-	}
+// sort/set U, s, Vt
+    ires = (Num_ica_result *)malloc(sizeof(Num_ica_result));
+//    ires = (Num_svd_result *)malloc(sizeof(Num_svd_result));
+    ires->W  = Num_new_mat(ncomp, ncomp);    // unmixing mat
+    ires->WX = Num_new_mat(n, ncomp);       // time course
+    ires->WK = Num_new_mat(p, ncomp);       // map
 
-	Num_mmul(ires->WK, W, K1);
-
-	// W
-	Num_copy_mat(ires->W, W);
-
-	// sort U & Vt
-
+    Num_copy_mat(ires->W, W);
+    Num_copy_mat(ires->WX, Num_trans(WX));
+ // WK not set yet ####   
 
 // free mem (chk ###)
-	Num_free_mat(Xt);
-	Num_free_mat(W);
-	Num_free_mat(W1);
-	Num_free_mat(WX);
-	Num_free_mat(gWX);
-//	Num_free_mat(V);
-	Num_free_mat(V1);
-	Num_free_mat(V2);
-	Num_free_mat(tmp_mat);
+    Num_free_mat(Xt);
+    Num_free_mat(W);
+    Num_free_mat(W1);
+    Num_free_mat(WX);
+    Num_free_mat(gWX);
+    Num_free_mat(V);
+    Num_free_mat(V1);
+    Num_free_mat(V2);
+    Num_free_mat(tmp_mat);
 
-	return ires;
+    return ires;
 }
 
 //========================
 
+Num_ica_result *
+Num_ica(Num_mat *X, int ncomp)
+{
+//    return Num_ica_ref(X, ncomp);
+    return Num_ica_2(X, ncomp);
+}
+
+//============================
 void
 Num_free_svd_result(Num_svd_result *r)
 {

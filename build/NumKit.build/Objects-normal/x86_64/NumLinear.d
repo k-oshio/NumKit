@@ -1,4 +1,5 @@
-dependencies: /Users/oshio/Projects6/NumKit/NumKit/NumLinear.m \
+dependencies: /Users/oshio/Projects6/NumKit/NumKit/NumKit-Prefix.pch \
+  /Users/oshio/Projects6/NumKit/NumKit/NumLinear.m \
   /Users/oshio/Projects6/NumKit/NumKit/NumKit.h \
   /Users/oshio/Projects6/Reckit/Reckit/build/RecKit.framework/Headers/RecKit.h \
   /Users/oshio/Projects6/Reckit/Reckit/build/RecKit.framework/Headers/RecLoop.h \

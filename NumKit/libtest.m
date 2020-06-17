@@ -56,9 +56,9 @@ int main(int argc, const char * argv[])
 	//	test15();	// Mat <-> RecImage conversion
 	//	test16();	// phase graph
 	//	test17();	// eigenvalue
-		test18();	// SVD / ICA
-	//	test19();   // ICA
-	//	test20();   // ICA
+	//	test18();	// SVD / ICAd (NCI)
+	//	test19();   // ICA (simple)
+		test20();   // ICA
 	//	test21();	// NumMatrix
 	//	test22();	// NumMatrix (low level methods)
 	//	test23();	// NNLS analysis of multi-exponential data
@@ -1322,7 +1322,7 @@ test20()
 	saveAsKOImage(X, @"IMG_X");
 
 	res = Num_ica(X, 2);
-	saveAsKOImage(res->WX, @"IMG_ans");
+    saveAsKOImage(res->WX, @"IMG_ans");
 }
 
 void
