@@ -165,6 +165,24 @@
 	return m;
 }
 
++ (NumMatrix *)matrixWithNumMat:(Num_mat *)mt
+{
+    NumMatrix   *m;
+    float       *p, *q;
+    int         i, n;
+
+    m = [NumMatrix matrixOfType:mt->type nRow:mt->nr nCol:mt->nc];
+    n = [m len];
+    if (mt->type == NUM_COMPLEX) {
+        n *= 2;
+    }
+    p = [m data];
+    q = mt->data;
+    for (i = 0; i < n; i++) {
+        p[i] = q[i];
+    }
+    return m;
+}
 
 - (float *)data
 {
@@ -325,7 +343,7 @@
 }
 
 // C = AB
-- (NumMatrix *)multWithMat:(NumMatrix *)m
+- (NumMatrix *)multByMat:(NumMatrix *)m
 {
 	NumMatrix *res;
 	if (nCol != [m nRow]) {
@@ -338,7 +356,7 @@
 	return res;
 }
 
-- (NumMatrix *)multWithConst:(float)a
+- (NumMatrix *)multByConst:(float)a
 {
 	int			i;
 	float		*p, *q;
@@ -559,7 +577,7 @@
 	NSDictionary	*res;
 	NumMatrix		*m;
 	res = [self svd];
-	m = [[res objectForKey:@"U"] multWithMat:[res objectForKey:@"Vt"]];
+	m = [[res objectForKey:@"U"] multByMat:[res objectForKey:@"Vt"]];
 	return m;
 }
 
@@ -781,7 +799,7 @@
 		}
 		b = [B colVect:k];	// i-th column
 		[x clear];
-		w = [[AA trans] multWithMat:b];	// w = At b
+		w = [[AA trans] multByMat:b];	// w = At b
 
 		// main loop
 		for (outer = 0; outer < n * 2; outer++) {
@@ -838,7 +856,7 @@
 				xx[i] = ss[ix];
 				ix++;
 			}
-			w = [[AA trans] multWithMat:[b subMat:[AA multWithMat:x]]];	// w = At (b - Ax)
+			w = [[AA trans] multByMat:[b subMat:[AA multByMat:x]]];	// w = At (b - Ax)
 		}
 		// copy x to X
 		[X copyVec:x atCol:k];
@@ -941,19 +959,23 @@
 	int				i;
 
 	NumMatrix		*A;					// [n,  p]
+    NumMatrix       *At;                // [p,  n]
 	NumMatrix		*U;					// [n, nc]
 	NumMatrix		*X;					// [n, nc]
+    NumMatrix       *K;                 // [nc,nc]
 	NumMatrix		*Y;					// [nc, p]
 	NumMatrix		*W, *W1;			// [nc,nc]
-	NumMatrix		*XW;				// [n, nc]
-	float			*px;
-	NumMatrix		*g1, *g2;			// [n, nc]
-	float			*p1, *p2;
+	NumMatrix		*WX;				// [nc, n]
+    NumMatrix       *gWX;               // [nc, n]
+	float			*px, *pg;
+//	NumMatrix		*g1, *g2;			// [n, nc] ?
+//	float			*p1, *p2;
 	NumMatrix		*V1, *V2;			// [nc,nc]
 	NumMatrix		*Sg, *Sc, *St;			// [nc,nc], sigma, scale, sort
 	NumMatrix		*Vtnc;				// [nc, p]
 	NumMatrix		*tmpMat;
 	float			alpha = 5.0;
+    float           *dt;
 	
 	int				iter, maxIter = 1000;
 	float			lim, tmp, tol = 1.0e-5;
@@ -962,53 +984,86 @@
 	p = nCol;	// number of pixels
 
 	A = [self colCenter];
-	res = [A svd];
-	U = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
-	[U copyMatrix:[res objectForKey:@"U"]];
+    
+    At = [A trans];
+	res = [At svd];
+//	U = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
+//	[U copyMatrix:[res objectForKey:@"U"]];
+    U = [res objectForKey:@"U"];
+printf("U\n");
+[U dump];
+//	Sg = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:nc];
+//	[Sg copyMatrix:[res objectForKey:@"S"]];
+    Sg = [res objectForKey:@"S"];
+    dt = [Sg data];
+    for (i = 0; i < [Sg len]; i++) {
+        if (dt[i] != 0) {
+        //    dt[i] = 1.0 / sqrt(dt[i]);
+            dt[i] = sqrt(n) / dt[i];
+        }
+    }
+printf("sg\n");
+[Sg dump];
 
-	Sg = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:nc];
-	[Sg copyMatrix:[res objectForKey:@"S"]];
-
-	X = [U multWithConst:sqrt([U nRow])];	// SD along col = 1.0
-	X = [X multWithMat:Sg];
+	K = [[[U trans]  multByMat:Sg] trans];
+printf("obj K1\n");
+[K dump];
+    X = [K multByMat:At];
+printf("obj X1\n");
+[X dump];
 
 	W = [NumMatrix unitMatrixOfDim:nc];
 //	[W normal]; W = [W orthog];
-	g1 = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
-	g2 = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
-	p1 = [g1 data];
-	p2 = [g2 data];
+
+	//g1 = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
+	//g2 = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
+	//p1 = [g1 data];
+	//p2 = [g2 data];
 
 	for (iter = 0; iter < maxIter; iter++) {
-		XW = [X multWithMat:W];
-		// normalize rows of XW
-		XW = [XW colNorm];	// ### -> expand to calc Sc & St
+		WX = [W multByMat:X];
+        gWX = [WX copy];
+        px = [WX data];
+        pg = [gWX data];
+        for (i = 0; i < [WX len]; i++) {
+            tmp = px[i];
+            pg[i] = tmp * exp(-(tmp*tmp)/2);
+        }
+        V1 = [gWX multByMat:[X trans]];
+        V1 = [V1 multByConst:1.0/p];
 
-
-		px = [XW data];
-	//	g1 = tanh(alpha * x)
-	//	g2 = 1 / cosh(alpha * x)
-		for (i = 0; i < [g1 len]; i++) {
-			p1[i] = tanh(alpha * px[i]);
-			p2[i] = 1 / cosh(alpha * px[i]);
-		}
 	// V1 <- gxw %*% t(X)/p
-		V1 = [[[X trans] multWithMat:g1] multWithConst:1.0/p];
+	//	V1 = [[[X trans] multByMat:g1] multByConst:1.0/p];
 	// V2 <= Diag(apply(g.wx, 1, FUN = mean) %*% W
-		tmpMat = [[g2 colMean] diagMatrix];
-		V2 = [W multWithMat:tmpMat];
+	//	tmpMat = [[g2 colMean] diagMatrix];
+ 
+        for (i = 0; i < [WX len]; i++) {
+            tmp = px[i];
+            pg[i] = (1.0 - tmp*tmp) * exp(-(tmp*tmp)/2);
+        }
+        tmpMat = [[gWX rowMean] diagMatrix];
+        V2 = [tmpMat multByMat:W];  // ### X
+
+
+
+
+
+
+        // ##### 6-20 ###
+        
+    
 		W1 = [V1 subMat:V2];
 		W1 = [W1 orthog];
 
 	// lim <- max(Mod(Mod(diag(W1 %*% t(W))) - 1))
-		tmpMat = [W multWithMat:[W1 trans]];
+		tmpMat = [W multByMat:[W1 trans]];
 		px = [tmpMat data];
 		lim = 0;
 		for (i = 0; i < nc; i++) {
 			tmp = fabs(fabs(px[i * nc + i]) - 1);
 			if (tmp > lim) lim = tmp;
 		}
-//printf("%d %e\n", iter, lim);
+printf("%d %e\n", iter, lim);
 		if (lim < tol) break;
 		W = W1;
 	}
@@ -1017,13 +1072,10 @@
 	Vtnc = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:p];
 	[Vtnc copyMatrix:[res objectForKey:@"Vt"]];
 	
-//[Snc saveAsKOImage:@"IMG_Snc"];
-//	Y = [[[W trans] multWithMat:Sg] multWithMat:Vtnc];
-	Y = [[W trans] multWithMat:Vtnc];
-//[Y saveAsKOImage:@"IMG_Y"];
+	Y = [[W trans] multByMat:Vtnc];
 
 	return [NSDictionary dictionaryWithObjectsAndKeys:
-				XW, @"XW", Y, @"Y", U, @"U", Vtnc, @"Vt", nil];
+				WX, @"WX", Y, @"Y", U, @"U", Vtnc, @"Vt", W, @"W", nil];
 }
 
 // RecImage
@@ -2653,101 +2705,124 @@ saveAsKOImage(WX, @"IMG_out");
 }
 
 //========================
-// 2nd attempt
+// 2nd attempt (current version ###)
+// restarted using Num_ica_ref as reference (6-17-2020)
 Num_ica_result *
 Num_ica_2(Num_mat *X, int ncomp)
 {
-    Num_ica_result    *ires;    
-    Num_svd_result    *sres;    
-    int                n, p, ncn, ncnc;
-    int                i, j;
-    int                iter;
+    Num_ica_result  *ires;    
+    Num_svd_result  *sres;    
+    int             n, p, ncn, ncnc;
+    int             i, j;
+    int             iter;
     int             maxiter = 2000;
-    double            tol;
+    double          tol;
 
     // ncol x nrow, p:channels, pixels, n:time, observations
-    Num_mat            *Xt;                // p x n
-    Num_mat            *V, *D, *K, *U;        // p x p
-    Num_mat            *K1;                // ncomp x p
-    Num_mat            *X1;                // ncomp x n
-    Num_mat            *tmp_mat;            // n x ncomp
-    Num_mat            *WX, *gWX;            // n x ncomp
-    Num_mat            *W;                    // ncomp x ncomp
-    Num_mat            *V1, *V2;            // ncomp x ncomp
-    Num_mat            *W1;                // ncomp x ncomp
-    double            tmp;
+    Num_mat         *Xt;                // p x n
+    Num_mat         *V, *D, *K, *U;     // p x p (usaed for covar/SVD step only)
+    Num_mat         *K1;                // ncomp x p
+    Num_mat         *X1;                // ncomp x n
+    Num_mat         *tmp_mat;           // n x ncomp
+    Num_mat         *WX, *gWX;          // n x ncomp
+    Num_mat         *W;                 // ncomp x ncomp
+    Num_mat         *V1, *V2;           // ncomp x ncomp
+    Num_mat         *W1;                // ncomp x ncomp
+    double          tmp;
     
-    BOOL            row_norm = NO;
     BOOL            dbg = YES;
-//    float            alpha = 1.0;
 
     // input
     n = X->nr;    // n row (observations)
-    p = X->nc;    // p column (pixels)
+    p = X->nc;    // p column (pixels, channels)
+
 
     if (dbg) {
-        saveAsKOImage(X, @"IMG_X");
+        printf("n/p/ncomp = %d/%d/%d\n", n, p, ncomp);
+        saveAsKOImage(X, @"IMG_X"); // input
     }
+
+    Num_col_center(X);        // remove mean along col
+    Xt = Num_trans(X);  // ## remove trans at some point (everything has to be trans'ed)
+
+    if (0) {
+        V = Num_new_mat(p, p);
+        Num_mmul(V, Xt, X);
+        Num_mmul_const(V, 1.0/n);
+    // s <- La.svd(V)
+        sres = Num_svd(V);
+
+    // D <- diag(c(1/sqrt(s$d)))
+        D = Num_new_mat(p, p);
+        for (i = 0; i < p; i++) {
+            D->data[i * p + i] = 1.0 / sqrt(sres->s->data[i]);
+        }
+printf("U covar\n");
+dump_mat(sres->U);
+printf("1/sqrt(s)\n");
+dump_mat(D);
+    // K <- D %*% t(s$u)
+        K = Num_new_mat(p, p);
+        U = Num_trans(sres->U);
+
+        Num_mmul(K, D, U);
+    // K <- matrix(K[1:n.comp, ], n.comp, p)
+    // ncomp != p case is not tested yet
+        K1 = Num_new_mat(ncomp, p);
+        for (i = 0; i < ncomp; i++) {
+            for (j = 0; j < p; j++) {
+                K1->data[i * ncomp + j] = K->data[i * p + j];
+            }
+        }
+printf("K1 covar\n");
+dump_mat(K1);
+//        saveAsKOImage(K1, @"IMG_K1");
+        Num_free_mat(V);
+        Num_free_mat(D);
+        Num_free_mat(K);
+        Num_free_mat(U);
+    } else {    // direct SVD ok (6-19-2020)
+    K1 = Num_trans(X);  // Xt
+ //   Num_mmul_const(K1, 1.0/sqrt(n)); // this can be done later to sigma
+    sres = Num_svd(K1);
+    printf("U svd\n");
+    dump_mat(sres->U);
+    printf("s svd\n");
+//    dump_vec(sres->s);
+    for (i = 0; i < 2; i++) {
+        printf("%f\n", 1.0 / (sres->s->data[i]));
+    }
+//    dump_mat(sres->Vt);
+        K1 = Num_new_mat(ncomp, p);    // ok
+        for (i = 0; i < ncomp; i++) {
+            for (j = 0; j < p; j++) {
+                K1->data[j * ncomp + i] = sres->U->data[j * p + i] / (sres->s->data[i]) * sqrt(n); // NOT sqrt(s) ??? 
+            }
+        }
+    printf("K1 svd\n");
+    dump_mat(K1);
+//    exit(0);
+    //    saveAsKOImage(K1, @"IMG_K1");
+    }
+
+// X1 <- K %x% X
+    X1 = Num_new_mat(ncomp, n);
+    Num_mmul(X1, K1, Xt);
+printf("X1 svd\n");
+dump_mat(X1);
+saveAsKOImage(X1, @"IMG_X1");
+
 
 //    w.init <- matrix(rnorm(n.comp^2, n.comp, n.comp)
     W = Num_new_mat(ncomp, ncomp);
     for (i = 0; i < ncomp * ncomp; i++) {
         W->data[i] = Num_nrml(0.0, 1.0);
     }
-
-// === if (method == "R"_ =====
-//    X <- scale(X, scale = FALSE)
-    Num_col_center(X);        // X <- scale(X, scale = FALSE)
-    saveAsKOImage(X, @"IMG_Xcenter");
-
-//    X <- if (row.norm) t(scale(X, scale = row.snorm)) else t(X)
-    Xt = Num_trans(X);
-    if (row_norm) {
-        Num_row_center(X);
-        Num_row_norm(X);
-        Num_trans_ip(Xt, X);
-    }
-//    V <- X %*% t(X) / n
-    V = Num_new_mat(p, p);
-    Num_mmul(V, Xt, X);
-    Num_mmul_const(V, 1.0/n);
-
-// s <- La.svd(V)
-    sres = Num_svd(V);
-
-// D <- diag(c(1/sqrt(s$d)))
-    D = Num_new_mat(p, p);
-    for (i = 0; i < p; i++) {
-        D->data[i * p + i] = 1.0 / sqrt(sres->s->data[i]);
-    }
-// K <- D %*% t(s$u)
-    K = Num_new_mat(p, p);
-    U = Num_trans(sres->U);
-    Num_mmul(K, D, U);
-// K <- matrix(K[1:n.comp, ], n.comp, p)
-// ncomp != p case is not tested yet
-    K1 = Num_new_mat(ncomp, p);
-    for (i = 0; i < ncomp; i++) {
-        for (j = 0; j < p; j++) {
-            K1->data[i * ncomp + j] = K->data[i * p + j];
-        }
-    }
-//saveAsKOImage(K, @"IMG_K");
-//saveAsKOImage(K1, @"IMG_K1");
-
-// X1 <- K %x% X
-    X1 = Num_new_mat(ncomp, n);
-    Num_mmul(X1, K1, Xt);
-
-saveAsKOImage(X1, @"IMG_X1");
-
-// ica.R.par()
-// W <- w.init
-// sW <- La.svd(W)
-// W <- sW$u %*% Diag(1/sW$d) %*% t(sW$u) %*% W
+    // ica.R.par()
+    // W <- w.init
+    // sW <- La.svd(W)
+    // W <- sW$u %*% Diag(1/sW$d) %*% t(sW$u) %*% W
     Num_orth_mat(W);
-
-// if (fun == "exp")
 
 // fixed point iteration
     WX  = Num_new_mat(ncomp, n);
@@ -2758,7 +2833,6 @@ saveAsKOImage(X1, @"IMG_X1");
     tmp_mat = Num_new_mat(ncomp, ncomp);
     ncn = ncomp * n;
     ncnc = ncomp * ncomp;
-    maxiter = 100;
 
 // while (lim(it] > tol && it < maxit) {
     for (iter = 0; iter < maxiter; iter++) {
@@ -2857,7 +2931,6 @@ saveAsKOImage(WX, @"IMG_out");
     Num_free_mat(W1);
     Num_free_mat(WX);
     Num_free_mat(gWX);
-    Num_free_mat(V);
     Num_free_mat(V1);
     Num_free_mat(V2);
     Num_free_mat(tmp_mat);

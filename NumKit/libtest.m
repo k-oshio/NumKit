@@ -56,9 +56,9 @@ int main(int argc, const char * argv[])
 	//	test15();	// Mat <-> RecImage conversion
 	//	test16();	// phase graph
 	//	test17();	// eigenvalue
-	//	test18();	// SVD / ICAd (NCI)
-	//	test19();   // ICA (simple)
-		test20();   // ICA
+	//	test18();	// SVD / ICA (NCI)
+	//	test19();   // ICA (pdf)
+		test20();   // ICA (separation)
 	//	test21();	// NumMatrix
 	//	test22();	// NumMatrix (low level methods)
 	//	test23();	// NNLS analysis of multi-exponential data
@@ -1194,13 +1194,13 @@ test18()
 
 //	img = [RecImage imageWithKOImage:@"../RecKit/toshiba_images/DWI-rinkan-2/b200-proc/b200-1.img"];
 //	img = [RecImage imageWithKOImage:@"../RecKit/nciRecon/IMG_bold.sav"];
-	img = [RecImage imageWithKOImage:@"/Users/oshio/images/NCI/NIRS/2018-0627/results/2/IMG_mg"];
+	img = [RecImage imageWithKOImage:@"/Users/oshio/images/NCI/NIRS/2018-0627/results/2/mag/2/IMG_subsample"];
 //	[img magnitude];
 	xDim = [img xDim];
 	yDim = [img yDim];
 	nSlc = [img zDim];
 
-	nSlc = 800;
+//	nSlc = 3600;
 	[img crop:[img zLoop] to:nSlc startAt:0];
 	[img saveAsKOImage:@"IMG_img"];
 
@@ -1232,7 +1232,7 @@ test18()
 
 // == ICA
 	if (1) {
-		int nc = 20;
+		int nc = 50;
 		printf("ICA (new interface)\n");
 		res = [A icaForNC:nc];
 
@@ -1251,52 +1251,70 @@ test18()
 	}
 }
 
-// example #1
+// example #1 (histogram)
 void
 test19()
 {
 	Num_mat			*S, *A, *X;
 	int				i, n = 5000;
+    int             nc = 2;
 	Num_ica_result	*res;
-	float			hist[100];
+    NSDictionary    *dres;
+    RecImage        *tmpImg;
+    float           *p;
+    float            hist1[100];
+    float            hist2[100];
 
 	system("rm IMG_*");
 
-	S = Num_new_mat(n, 2);
-	X = Num_new_mat(n, 2);
-	for (i = 0; i < n * 2; i++) {
+	S = Num_new_mat(n, nc);
+	X = Num_new_mat(n, nc);
+	for (i = 0; i < n * nc; i++) {
 		S->data[i] = Num_unif(0, 1);
 	//	printf("%d %f\n", i, S->data[i]);
 	}
 	saveAsKOImage(S, @"IMG_S");
 
-	A = Num_new_mat(2, 2);
+	A = Num_new_mat(nc, nc);
 	A->data[0] = 0.7;
 	A->data[1] = 0.7;
-	A->data[2] = -0.7;
-	A->data[3] = 0.7;
+	A->data[2] = 0.2;  // -0.7
+    A->data[3] = 0.7;
 	Num_mmul(X, S, A);
 	saveAsKOImage(X, @"IMG_X");
-	histogram(hist, 100, X->data + n, n, -5, 5);
+    histogram(hist1, 100, X->data + 0,   n, -5, 5);
+    histogram(hist2, 100, X->data + n,   n, -5, 5);
 	for (i = 0; i < 100; i++) {
-		printf("%d %f\n", i, hist[i]);
+		printf("%d %f %f\n", i, hist1[i], hist2[i]);
 	}
-
-	res = Num_ica(X, 2);
-	histogram(hist, 100, res->WX->data + 0, n, -10, 10);
+ 
+    if (0) {
+        res = Num_ica(X, nc);
+        histogram(hist1, 100, res->WX->data + 0,   n, -10, 10);
+        histogram(hist2, 100, res->WX->data + n,   n, -10, 10);
+    } else {
+        dres = [[NumMatrix matrixWithNumMat:X] icaForNC:nc];
+        tmpImg = [[dres objectForKey:@"XW"] toRecImage];
+        p = [tmpImg data];
+        histogram(hist1, 100, p + 0,   n, -10, 10);
+        histogram(hist2, 100, p + n,   n, -10, 10);
+    }
+    
 	for (i = 0; i < 100; i++) {
-		printf("%d %f\n", i, hist[i]);
+		printf("%d %f %f\n", i, hist1[i], hist2[i]);
 	}
 	exit(0);
 }
 
-// example #2
+// example #2 (signal separation)
 void
 test20()
 {
 	Num_mat			*S, *A, *X;
+    RecImage        *wx;
 	int				i, n = 1000;
 	Num_ica_result	*res;
+    NSDictionary    *dres;
 	float			th;
 
 	system("rm IMG_*");
@@ -1316,13 +1334,22 @@ test20()
 	A = Num_new_mat(2, 2);
 	A->data[0] = 0.291;
 	A->data[1] = 0.6557;
-	A->data[2] = -0.5439;
+	A->data[2] = 0.3; //-0.5439;
 	A->data[3] = 0.5572;
 	Num_mmul(X, S, A);
 	saveAsKOImage(X, @"IMG_X");
 
-	res = Num_ica(X, 2);
-    saveAsKOImage(res->WX, @"IMG_ans");
+    if (0) {
+        res = Num_ica(X, 2);
+        saveAsKOImage(res->WX, @"IMG_ans");
+        saveAsKOImage(res->W, @"IMG_W");
+    } else {
+        dres = [[NumMatrix matrixWithNumMat:X] icaForNC:2];
+        wx = [[dres objectForKey:@"XW"] toRecImage];
+        [wx saveAsKOImage:@"IMG_ans"];
+        wx =  [[dres objectForKey:@"W"] toRecImage];
+        [wx saveAsKOImage:@"IMG_W"];
+    }
 }
 
 void
@@ -1381,14 +1408,14 @@ test22()	// low level
 	B = [A trans];
 	[B dump];
 	
-	C = [A multWithMat:B];
+	C = [A multByMat:B];
 	[C dump];
 	
 	c = [C colVect:1];
 	A = [A trans];
 	[A dump];
 	[c dump];
-	[[A multWithMat:c] dump];
+	[[A multByMat:c] dump];
 	
 	c = [C rowVect:0];
 	[c dump];

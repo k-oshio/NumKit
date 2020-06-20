@@ -163,6 +163,7 @@ typedef struct {
 }
 
 + (NumMatrix *)matrixWithImage:(RecImage *)img;
++ (NumMatrix *)matrixWithNumMat:(Num_mat *)mt;
 + (NumMatrix *)matrixOfType:(int)type nRow:(int)nr nCol:(int)nc;
 + (NumMatrix *)matrixWithMatrix:(NumMatrix *)m;
 + (NumMatrix *)unitMatrixOfDim:(int)n;
@@ -177,14 +178,13 @@ typedef struct {
 // low level
 - (void)clear;
 - (void)normal;
+// self is not altered
 - (NumMatrix *)copy;	// copy object
 - (NumMatrix *)trans;
-//- (NumMatrix *)diagMatrixWithVector:(NumVector *)v;
 - (NumMatrix *)diagMatrix;			// make diag mat with single col or single row mat
 - (void)copyMatrix:(NumMatrix *)m;		// copy data, size can be different
-//- (NumVector *)multWithVector:(NumVector *)v;	// everything is matrix
-- (NumMatrix *)multWithMat:(NumMatrix *)m;
-- (NumMatrix *)multWithConst:(float)a;
+- (NumMatrix *)multByMat:(NumMatrix *)m;
+- (NumMatrix *)multByConst:(float)a;
 - (NumMatrix *)addMat:(NumMatrix *)m;
 - (NumMatrix *)subMat:(NumMatrix *)m;
 - (NumMatrix *)addConst:(float)a;	// sub not necessary (just make a negative)
