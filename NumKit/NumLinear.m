@@ -403,7 +403,7 @@
 	return res;
 }
 
-- (NumMatrix *)colMean
+- (NumMatrix *)rowMean
 {
 	int			i, j;
 	float		mn;
@@ -415,7 +415,7 @@
 	for (i = 0; i < nCol; i++) {
 		mn = 0;
 		for (j = 0; j < nRow; j++) {
-			mn += p[i * nRow + j];
+			mn += p[i=j * nCol + i];
 		}
 		mn /= nRow;
 		q[i] = mn;
@@ -423,7 +423,7 @@
 	return m;
 }
 
-- (NumMatrix *)rowMean
+- (NumMatrix *)colMean
 {
 	int			i, j;
 	float		mn;
@@ -435,7 +435,8 @@
 	for (i = 0; i < nRow; i++) {
 		mn = 0;
 		for (j = 0; j < nCol; j++) {
-			mn += p[j * nCol + i];
+        //    mn += p[j * nCol + i];
+            mn += p[i * nRow + j];
 		}
 		mn /= nCol;
 		q[i] = mn;
@@ -958,43 +959,39 @@
 	int				n, p;
 	int				i;
 
+// nr x nc, p:channels, pixels, n:time, observations
 	NumMatrix		*A;					// [n,  p]
     NumMatrix       *At;                // [p,  n]
-	NumMatrix		*U;					// [n, nc]
-	NumMatrix		*X;					// [n, nc]
+	NumMatrix		*U;					// [nc,nc]
+	NumMatrix		*X;					// [n, nc] chk
     NumMatrix       *K;                 // [nc,nc]
-	NumMatrix		*Y;					// [nc, p]
+	NumMatrix		*Y;					// [nc, p] chk
 	NumMatrix		*W, *W1;			// [nc,nc]
-	NumMatrix		*WX;				// [nc, n]
-    NumMatrix       *gWX;               // [nc, n]
+	NumMatrix		*WX;				// [nc, n] chk
+    NumMatrix       *gWX;               // [nc, n] chk
 	float			*px, *pg;
-//	NumMatrix		*g1, *g2;			// [n, nc] ?
-//	float			*p1, *p2;
 	NumMatrix		*V1, *V2;			// [nc,nc]
-	NumMatrix		*Sg, *Sc, *St;			// [nc,nc], sigma, scale, sort
-	NumMatrix		*Vtnc;				// [nc, p]
+	NumMatrix		*Sg;                // [nc,nc]
+    NumMatrix		*Vtnc;				// [nc, p] chk
 	NumMatrix		*tmpMat;
-	float			alpha = 5.0;
     float           *dt;
 	
-	int				iter, maxIter = 1000;
+	int				iter, maxIter = 1000; // -> should be smaller
 	float			lim, tmp, tol = 1.0e-5;
 
 	n = nRow;	// number of samples
 	p = nCol;	// number of pixels
 
 	A = [self colCenter];
+ [A saveAsKOImage:@"IMG_A_ica"];   
     
     At = [A trans];
 	res = [At svd];
-//	U = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
-//	[U copyMatrix:[res objectForKey:@"U"]];
     U = [res objectForKey:@"U"];
-printf("U\n");
-[U dump];
-//	Sg = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:nc];
-//	[Sg copyMatrix:[res objectForKey:@"S"]];
+//printf("U\n"); [U dump];
+[U saveAsKOImage:@"IMG_U_ica"];
     Sg = [res objectForKey:@"S"];
+//printf("sg\n"); [Sg dump];
     dt = [Sg data];
     for (i = 0; i < [Sg len]; i++) {
         if (dt[i] != 0) {
@@ -1002,26 +999,21 @@ printf("U\n");
             dt[i] = sqrt(n) / dt[i];
         }
     }
-printf("sg\n");
-[Sg dump];
 
-	K = [[[U trans]  multByMat:Sg] trans];
-printf("obj K1\n");
-[K dump];
+	K = [[U multByMat:Sg] trans];
+ [K saveAsKOImage:@"IMG_K"];
+ exit(0);   
+//printf("obj K1\n"); [K dump];
     X = [K multByMat:At];
-printf("obj X1\n");
-[X dump];
-
+//printf("obj X1\n"); [X dump];
+[K saveAsKOImage:@"IMG_K"];
 	W = [NumMatrix unitMatrixOfDim:nc];
 //	[W normal]; W = [W orthog];
-
-	//g1 = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
-	//g2 = [NumMatrix matrixOfType:NUM_REAL nRow:n nCol:nc];
-	//p1 = [g1 data];
-	//p2 = [g2 data];
+//[W dump];
 
 	for (iter = 0; iter < maxIter; iter++) {
 		WX = [W multByMat:X];
+ //printf("Obj WX\n"); [WX dump];      
         gWX = [WX copy];
         px = [WX data];
         pg = [gWX data];
@@ -1031,6 +1023,8 @@ printf("obj X1\n");
         }
         V1 = [gWX multByMat:[X trans]];
         V1 = [V1 multByConst:1.0/p];
+//printf("Obj gWX\n"); [gWX dump];
+//printf("Obj V1\n"); [V1 dump]; // ok
 
 	// V1 <- gxw %*% t(X)/p
 	//	V1 = [[[X trans] multByMat:g1] multByConst:1.0/p];
@@ -1041,13 +1035,14 @@ printf("obj X1\n");
             tmp = px[i];
             pg[i] = (1.0 - tmp*tmp) * exp(-(tmp*tmp)/2);
         }
-        tmpMat = [[gWX rowMean] diagMatrix];
+//[gWX dump];
+//[gWX saveAsKOImage:@"IMG_gwx"];
+        tmpMat = [[gWX colMean] diagMatrix];
+//[tmpMat dump];
         V2 = [tmpMat multByMat:W];  // ### X
 
-
-
-
-
+//printf("Obj colMean\n"); [[gWX colMean] dump];
+//printf("Obj V2\n"); [V2 dump];
 
         // ##### 6-20 ###
         
@@ -1066,7 +1061,9 @@ printf("obj X1\n");
 printf("%d %e\n", iter, lim);
 		if (lim < tol) break;
 		W = W1;
-	}
+        
+//exit(0);    // ### checking ...
+	}   // iteration
 
 	// calc "Y"
 	Vtnc = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:p];
@@ -1075,7 +1072,7 @@ printf("%d %e\n", iter, lim);
 	Y = [[W trans] multByMat:Vtnc];
 
 	return [NSDictionary dictionaryWithObjectsAndKeys:
-				WX, @"WX", Y, @"Y", U, @"U", Vtnc, @"Vt", W, @"W", nil];
+				[WX trans], @"WX", Y, @"Y", U, @"U", Vtnc, @"Vt", W, @"W", nil];
 }
 
 // RecImage
@@ -2785,22 +2782,21 @@ dump_mat(K1);
     K1 = Num_trans(X);  // Xt
  //   Num_mmul_const(K1, 1.0/sqrt(n)); // this can be done later to sigma
     sres = Num_svd(K1);
-    printf("U svd\n");
-    dump_mat(sres->U);
-    printf("s svd\n");
-//    dump_vec(sres->s);
-    for (i = 0; i < 2; i++) {
-        printf("%f\n", 1.0 / (sres->s->data[i]));
-    }
+//    printf("U svd\n"); dump_mat(sres->U);
+//    printf("s svd\n"); dump_vec(sres->s);
+//    for (i = 0; i < 2; i++) {
+//        printf("%f\n", 1.0 / (sres->s->data[i]));
+//    }
 //    dump_mat(sres->Vt);
-        K1 = Num_new_mat(ncomp, p);    // ok
+    //    K1 = Num_new_mat(ncomp, p);    // ok
+        K1 = Num_new_mat(ncomp, ncomp);
         for (i = 0; i < ncomp; i++) {
-            for (j = 0; j < p; j++) {
+         //   for (j = 0; j < p; j++) {
+            for (j = 0; j < ncomp; j++) {
                 K1->data[j * ncomp + i] = sres->U->data[j * p + i] / (sres->s->data[i]) * sqrt(n); // NOT sqrt(s) ??? 
             }
         }
-    printf("K1 svd\n");
-    dump_mat(K1);
+   printf("K1 svd\n"); dump_mat(K1);
 //    exit(0);
     //    saveAsKOImage(K1, @"IMG_K1");
     }
@@ -2808,8 +2804,7 @@ dump_mat(K1);
 // X1 <- K %x% X
     X1 = Num_new_mat(ncomp, n);
     Num_mmul(X1, K1, Xt);
-printf("X1 svd\n");
-dump_mat(X1);
+//printf("X1 svd\n"); dump_mat(X1);
 saveAsKOImage(X1, @"IMG_X1");
 
 
@@ -2818,6 +2813,7 @@ saveAsKOImage(X1, @"IMG_X1");
     for (i = 0; i < ncomp * ncomp; i++) {
         W->data[i] = Num_nrml(0.0, 1.0);
     }
+Num_unit_mat(W);
     // ica.R.par()
     // W <- w.init
     // sW <- La.svd(W)
@@ -2838,7 +2834,8 @@ saveAsKOImage(X1, @"IMG_X1");
     for (iter = 0; iter < maxiter; iter++) {
         // wx <- W %*% X
         Num_mmul(WX, W, X1);
-saveAsKOImage(WX, @"IMG_WX");
+//saveAsKOImage(WX, @"IMG_WX");
+//printf("ref WX\n"); dump_mat(WX);
 
         // gwx <- wx * exp(-wx^2)/2)
         for (i = 0; i < ncn; i++) {
@@ -2850,10 +2847,13 @@ saveAsKOImage(WX, @"IMG_WX");
         }
         // V1 = gWX * Xt / p
         Num_mtmul(V1, gWX, NO, X1, YES);
+//printf("ref gWX\n"); dump_mat(gWX);
         for (i = 0; i < ncnc; i++) {
             V1->data[i] /= p;
         }
-saveAsKOImage(V1, @"IMG_V1");
+//saveAsKOImage(V1, @"IMG_V1");
+//printf("ref V1\n"); dump_mat(V1);
+
         // g.wx <- (1 - wx^2) * exp(-(wx^2)/2)
         for (i = 0; i < ncn; i++) {
             tmp = WX->data[i];
@@ -2862,7 +2862,7 @@ saveAsKOImage(V1, @"IMG_V1");
             // logcosh
         //    gWX->data[i] = alpha * (1 - (tanh(alpha * tmp)) * (tanh(alpha * tmp)));
         }
-
+//dump_mat(gWX);
         // V2 <- Diag(apply(g.wx, 1, FUN = mean)) %*% W
         Num_clear_mat(tmp_mat);
         for (i = 0; i < ncomp; i++) {    // row
@@ -2873,24 +2873,27 @@ saveAsKOImage(V1, @"IMG_V1");
             tmp /= n;
             tmp_mat->data[i * ncomp + i] = tmp;
         }
-saveAsKOImage(tmp_mat, @"IMG_diag");
+//saveAsKOImage(tmp_mat, @"IMG_diag");
+//printf("ref tmp_mat\n"); dump_mat(tmp_mat);
 
         Num_mmul(V2, tmp_mat, W);
-saveAsKOImage(V2, @"IMG_V2");
+//saveAsKOImage(V2, @"IMG_V2");
+//printf("ref V2\n"); dump_mat(V2);
+//exit(0);
         // W1 <- V1 - V2
         for (i = 0; i < ncnc; i++) {
             W1->data[i] = V1->data[i] - V2->data[i];    // need to preserve V1 ###
         }
-saveAsKOImage(V1, @"IMG_V12");
+//saveAsKOImage(V1, @"IMG_V12");
         // make orthogonal
         // sW1 <- La.svd(W1)
         // W1 <- sW1$u %*% Diag*1/sW1$d) %*% t(sW1%u) %*% W1
         Num_orth_mat(W1);    // #### chk
-saveAsKOImage(V1, @"IMG_V12o");
+//saveAsKOImage(V1, @"IMG_V12o");
                 
         // calc tol (V1 * Wt)
         Num_mtmul(tmp_mat, W1, NO, W, YES);
-saveAsKOImage(tmp_mat, @"IMG_tol");
+//saveAsKOImage(tmp_mat, @"IMG_tol");
 
         tmp = 0;
         for (i = 0; i < ncomp; i++) {
@@ -2904,6 +2907,8 @@ saveAsKOImage(tmp_mat, @"IMG_tol");
         Num_copy_mat(W, W1);
 
         if (tol < 1.0e-6) break;
+
+//exit(0); // ### checking ...
     }    // iteration
 
 // Wout

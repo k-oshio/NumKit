@@ -56,9 +56,9 @@ int main(int argc, const char * argv[])
 	//	test15();	// Mat <-> RecImage conversion
 	//	test16();	// phase graph
 	//	test17();	// eigenvalue
-	//	test18();	// SVD / ICA (NCI)
+		test18();	// SVD / ICA (NCI)
 	//	test19();   // ICA (pdf)
-		test20();   // ICA (separation)
+	//	test20();   // ICA (separation)
 	//	test21();	// NumMatrix
 	//	test22();	// NumMatrix (low level methods)
 	//	test23();	// NNLS analysis of multi-exponential data
@@ -1151,29 +1151,12 @@ test18()
 {
 	RecImage		*img, *img_a, *img_u, *img_e, *tmp;
 	NumMatrix		*A;
-	int				xDim, yDim, nSlc;
+	int				xDim, yDim;
+    int             tDim, iDim;
 	NSDictionary	*res;
 
 	system("rm IMG_*");
 
-// === low level
-	if (0) {
-		NumMatrix	*B;
-		float		*p;
-		int			i;
-		A = [NumMatrix matrixOfType:NUM_REAL nRow:3 nCol:3];
-		p = [A data];
-		for (i = 0; i < [A len]; i++) {
-			p[i] = i;
-		}
-		[A dump];
-		B = [A colCenter];
-		[B dump];
-		B = [A rowCenter];
-		[B dump];
-
-		exit(0);
-	}
 	// non-linearity func
 	if (0) {
 		int		i;
@@ -1198,23 +1181,25 @@ test18()
 //	[img magnitude];
 	xDim = [img xDim];
 	yDim = [img yDim];
-	nSlc = [img zDim];
+	tDim = [img zDim];
+    iDim = xDim * yDim;
 
-//	nSlc = 3600;
-	[img crop:[img zLoop] to:nSlc startAt:0];
+//	tDim = 3600;
+	[img crop:[img zLoop] to:tDim startAt:0];
 	[img saveAsKOImage:@"IMG_img"];
 
-	printf("x/y/slc = %d/%d/%d\n", xDim, yDim, nSlc);
-	img_a = [RecImage imageOfType:RECIMAGE_REAL xDim:xDim * yDim yDim:nSlc];
+	printf("x/y/slc = %d/%d/%d\n", xDim, yDim, tDim);
+    //img_a = [RecImage imageOfType:RECIMAGE_REAL xDim:tDim yDim:iDim];
+    img_a = [RecImage imageOfType:RECIMAGE_REAL xDim:iDim yDim:tDim];   // this is correct (trans of doc)
 
 	[img_a copyImageData:img];
-	[img_a saveAsKOImage:@"IMG_A"];
+	[img_a saveAsKOImage:@"IMG_A"]; // t is column direction
 
 //	A = Num_im_to_m(img_a);
 	A = [img_a toMatrix];
 
 // PCA (new interface)
-	if (0) {
+	if (1) {
 		printf("new interface\n");
 		res = [A svd];
 //		img_u = Num_m_to_im(sres->U);
@@ -1232,16 +1217,16 @@ test18()
 
 // == ICA
 	if (1) {
-		int nc = 50;
+		int nc = 5;
 		printf("ICA (new interface)\n");
 		res = [A icaForNC:nc];
 
 		img_u = [[res objectForKey:@"U"] toRecImage];
 		[img_u trans];
 		[img_u saveAsKOImage:@"IMG_U"];	// U
-		img_u = [[res objectForKey:@"XW"] toRecImage];
+		img_u = [[res objectForKey:@"WX"] toRecImage];
 		[img_u trans];
-		[img_u saveAsKOImage:@"IMG_XW"];	// XW
+		[img_u saveAsKOImage:@"IMG_WX"];	// WX
 		img_u = [[res objectForKey:@"W"] toRecImage];
 		[img_u saveAsKOImage:@"IMG_W"];	// W
 		img_e = [img copy];
@@ -1294,7 +1279,7 @@ test19()
         histogram(hist2, 100, res->WX->data + n,   n, -10, 10);
     } else {
         dres = [[NumMatrix matrixWithNumMat:X] icaForNC:nc];
-        tmpImg = [[dres objectForKey:@"XW"] toRecImage];
+        tmpImg = [[dres objectForKey:@"WX"] toRecImage];
         p = [tmpImg data];
         histogram(hist1, 100, p + 0,   n, -10, 10);
         histogram(hist2, 100, p + n,   n, -10, 10);
@@ -1319,23 +1304,28 @@ test20()
 
 	system("rm IMG_*");
 
+// (nr, nc)
 	S = Num_new_mat(n, 2);
-	X = Num_new_mat(n, 2);
+	X = Num_new_mat(n, 3);
+// signal 1
 	for (i = 0; i < n; i++) {
 		th = (float)i / 20;
 		S->data[i] = sin(th);
 	}
+// signal 2   
 	for (i = 0; i < n; i++) {
 		th = ((float)(i % 200) - 100) / 200;
 		S->data[i + n] = th;
 	}
 	saveAsKOImage(S, @"IMG_S");
 
-	A = Num_new_mat(2, 2);
+	A = Num_new_mat(2, 3);
 	A->data[0] = 0.291;
 	A->data[1] = 0.6557;
-	A->data[2] = 0.3; //-0.5439;
-	A->data[3] = 0.5572;
+	A->data[2] =-0.3; //-0.5439;
+    A->data[3] = 0.5572;
+    A->data[4] =-0.4;
+    A->data[5] = 0.5;
 	Num_mmul(X, S, A);
 	saveAsKOImage(X, @"IMG_X");
 
@@ -1345,7 +1335,7 @@ test20()
         saveAsKOImage(res->W, @"IMG_W");
     } else {
         dres = [[NumMatrix matrixWithNumMat:X] icaForNC:2];
-        wx = [[dres objectForKey:@"XW"] toRecImage];
+        wx = [[dres objectForKey:@"WX"] toRecImage];
         [wx saveAsKOImage:@"IMG_ans"];
         wx =  [[dres objectForKey:@"W"] toRecImage];
         [wx saveAsKOImage:@"IMG_W"];
