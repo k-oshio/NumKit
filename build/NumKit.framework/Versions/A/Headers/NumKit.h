@@ -187,7 +187,7 @@ typedef struct {
 - (NumMatrix *)multByConst:(float)a;
 - (NumMatrix *)addMat:(NumMatrix *)m;
 - (NumMatrix *)subMat:(NumMatrix *)m;
-- (NumMatrix *)addConst:(float)a;	// sub not necessary (just make a negative)
+- (NumMatrix *)addConst:(float)a;	// sub not necessary (just make A negative)
 - (NumMatrix *)colVect:(int)ix;
 - (NumMatrix *)rowVect:(int)ix;
 - (NumMatrix *)selectCol:(int)col;

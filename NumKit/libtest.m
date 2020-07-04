@@ -1208,8 +1208,8 @@ test18()
 		[img_u saveAsKOImage:@"IMG_Ut"];	// Ut
 
 //		tmp = Num_m_to_im(sres->Vt);
-		tmp = [[ res objectForKey:@"Vt"] toRecImage];
-		[tmp saveAsKOImage:@"IMG_Vt"];
+		tmp = [[res objectForKey:@"Vt"] toRecImage];
+//		[tmp saveAsKOImage:@"IMG_Vt"];
 		img_e = [RecImage imageWithImage:img];
 		[img_e copyImageData:tmp];
 		[img_e saveAsKOImage:@"IMG_PCA"];
@@ -1217,16 +1217,15 @@ test18()
 
 // == ICA
 	if (1) {
-		int nc = 5;
+		int nc = 10;
 		printf("ICA (new interface)\n");
 		res = [A icaForNC:nc];
 
-		img_u = [[res objectForKey:@"U"] toRecImage];
-		[img_u trans];
-		[img_u saveAsKOImage:@"IMG_U"];	// U
 		img_u = [[res objectForKey:@"WX"] toRecImage];
+if ([img_u checkNaN]) printf("NaN found\n");
 		[img_u trans];
 		[img_u saveAsKOImage:@"IMG_WX"];	// WX
+  exit(0);      
 		img_u = [[res objectForKey:@"W"] toRecImage];
 		[img_u saveAsKOImage:@"IMG_W"];	// W
 		img_e = [img copy];
@@ -1298,6 +1297,8 @@ test20()
 	Num_mat			*S, *A, *X;
     RecImage        *wx;
 	int				i, n = 1000;
+    int             nc = 2;
+    int             p = 3;
 	Num_ica_result	*res;
     NSDictionary    *dres;
 	float			th;
@@ -1305,8 +1306,8 @@ test20()
 	system("rm IMG_*");
 
 // (nr, nc)
-	S = Num_new_mat(n, 2);
-	X = Num_new_mat(n, 3);
+	S = Num_new_mat(n, nc);
+	X = Num_new_mat(n, p);
 // signal 1
 	for (i = 0; i < n; i++) {
 		th = (float)i / 20;
@@ -1319,7 +1320,7 @@ test20()
 	}
 	saveAsKOImage(S, @"IMG_S");
 
-	A = Num_new_mat(2, 3);
+	A = Num_new_mat(nc, p);
 	A->data[0] = 0.291;
 	A->data[1] = 0.6557;
 	A->data[2] =-0.3; //-0.5439;
@@ -1329,12 +1330,12 @@ test20()
 	Num_mmul(X, S, A);
 	saveAsKOImage(X, @"IMG_X");
 
-    if (0) {
+    if (0) {    // func
         res = Num_ica(X, 2);
         saveAsKOImage(res->WX, @"IMG_ans");
         saveAsKOImage(res->W, @"IMG_W");
-    } else {
-        dres = [[NumMatrix matrixWithNumMat:X] icaForNC:2];
+    } else {    // obj
+        dres = [[NumMatrix matrixWithNumMat:X] icaForNC:nc];
         wx = [[dres objectForKey:@"WX"] toRecImage];
         [wx saveAsKOImage:@"IMG_ans"];
         wx =  [[dres objectForKey:@"W"] toRecImage];
