@@ -85,7 +85,7 @@
 	}
 }
 
-- (NumMatrix *)diagMatrix
+- (NumMatrix *)diagMatrix   // row to diag
 {
 	int			i, n = [self length];
 	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:n nCol:n];
@@ -98,6 +98,7 @@
 
 	return m;
 }
+
 
 @end
 
@@ -595,6 +596,20 @@
 	return m;
 }
 
+- (NumMatrix *)diagToCol              // make row vector from diag matrix
+{
+    int          i, n = [self nCol];
+    NumMatrix    *v = [NumMatrix matrixOfType:type nRow:n nCol:1];
+    float        *q = [v data];
+    float        *p = [self data];
+
+    for (i = 0; i < n; i++) {
+        q[i] = p[i * n + i];
+    }
+
+    return v;
+}
+
 // solve Ax = b
 - (NumMatrix *)solveLinear:(NumMatrix *)B
 {
@@ -944,13 +959,13 @@
 
 // nr x nc, p:channels, pixels, n:time, observations, r:rank min(p, n)
 	NumMatrix		*A;					// [n,  p]
-    NumMatrix       *At;                // [p,  n]
 	NumMatrix		*U;					// [p,  r]
     NumMatrix       *Vt;
 	NumMatrix		*X;					// [nc, n] white input
     NumMatrix       *K;                 // [nc, p] whitening matrix
     NumMatrix       *Sg;                // [r,  r]
-    NumMatrix       *Sg1;               // [nc, r]
+    NumMatrix       *Sgnc;              // [nc, r]
+    NumMatrix       *WSg;   
 // === 7/3
 	NumMatrix		*Y;					// [nc, p] chk
 	NumMatrix		*W, *W1;			// [nc,nc]
@@ -958,77 +973,36 @@
     NumMatrix       *gWX;               // [nc, n] chk
 	float			*px, *pg;
 	NumMatrix		*V1, *V2;			// [nc,nc]
-     NumMatrix		*Vtnc;				// [nc, p] chk
+    NumMatrix		*Vtnc;				// [nc, n]
+    NumMatrix       *Unc;               // [p, nc];
 	NumMatrix		*tmpMat;
     float           *p1, *p2, *q;
 	
-	int				iter, maxIter = 20; // 1000  -> should be smaller
-	float			lim, tmp, tol = 1.0e-5;
+	int				iter, maxIter = 1000; // 1000  -> should be smaller
+	float			lim, tmp, tol = 1.0e-6;
 
 	n = nRow;	    // number of samples
 	p = nCol;	    // number of pixels
     r = MIN(n, p);  // rank
 
-	A = [self colCenter];
- [A saveAsKOImage:@"IMG_A_ica"];   
-    
-    At = [A trans];
- [At saveAsKOImage:@"IMG_At_ica"]; 
-   	res = [At svd];
+	A = [self colCenter];   // -> normalize ????
+   	res = [[A trans] svd];
     U = [res objectForKey:@"U"];
-//printf("U\n"); [U dump];
-[U saveAsKOImage:@"IMG_U_ica"];
     Sg = [res objectForKey:@"S"];
-[Sg saveAsKOImage:@"IMG_sg"];
-//printf("s\n"); [Sg dump];
-Vt = [res objectForKey:@"Vt"];
-[Vt saveAsKOImage:@"IMG_Vt_ica"];
+    Vt = [res objectForKey:@"Vt"];
+    Vtnc = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:n];
+    [Vtnc copyMatrix:Vt];
+    Sgnc = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:nc];
+    [Sgnc copyMatrix:Sg];
 
-if (0) {    // calc from U
-// U is [p, p] -> [p, min(p, n)] = r(ank)
-//    K = [NumMatrix unitMatrixOfDim:nc]; // [nc, nc] -> K[r, p]
-    K = [NumMatrix matrixOfType:NUM_REAL nRow:r nCol:p];
-    p1 = [Sg data]; // [r, r]
-//    p2 = [[U trans] data];  // [r, p]
-    p2 = [U data];  // [r, p]
-    q = [K data];   // [r, p]
-    for (i = 0; i < p; i++) {  // col
-        for (j = 0; j < r; j++) {  // row
-            if (p1[j*r + j] > 0.001) {
-            //    q[j*nc + i] = sqrt(n) * p2[j*p + i] / p1[j*r + j];
-                q[j*p + i] = sqrt(n) * p2[j*p + i] / p1[j*r + j];
-            }
-        }
-    } 
-     printf("K\n"); [K dump];   
-     [K saveAsKOImage:@"IMG_K"];
-
-    //printf("obj K1\n"); [K dump];
-        X = [K multByMat:At];
-    //printf("obj X1\n"); [X dump];
+    X = [Vtnc multByConst:sqrt(n)];
     [X saveAsKOImage:@"IMG_X"];
-} else {    // calc direct form Vt (now ok)
-    Sg1 = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:r];
-    p1 = [Sg data];
-    p2 = [Sg1 data];
-    for (i = 0; i < nc; i++) {
-    //    p2[i * nc + i] = sqrt(p1[i * r + i]);  // not necessary ???
-        p2[i * nc + i] = sqrt(n) * sqrt(p1[i * r + i]);
-    }
-    [Sg1 saveAsKOImage:@"IMG_sg1"];
-    X = [Sg1 multByMat:Vt];
-    [X saveAsKOImage:@"IMG_X"];
-    // make sub-mat by taking top nc rows of X
-
-}
 
 	W = [NumMatrix unitMatrixOfDim:nc];
 //	[W normal]; W = [W orthog];
 
 	for (iter = 0; iter < maxIter; iter++) {
 		WX = [W multByMat:X];
-[WX saveAsKOImage:@"IMG_WX"];    
-[W saveAsKOImage:@"IMG_W"];    
         gWX = [WX copy];
         px = [WX data];
         pg = [gWX data];
@@ -1038,36 +1012,23 @@ if (0) {    // calc from U
         }
         // V1 <- gxw %*% t(X)/p
         V1 = [gWX multByMat:[X trans]];
-     //   V1 = [V1 multByConst:1.0/p];
-        V1 = [V1 multByConst:1.0/nc];   // ???
-[V1 saveAsKOImage:@"IMG_V1"];
+        // V1 = [V1 multByConst:1.0/p];
+        V1 = [V1 multByConst:1.0/nc];
 
-	// V2 <= Diag(apply(g.wx, 1, FUN = mean) %*% W
-
-	//	tmpMat = [[g2 colMean] diagMatrix];
- 
+        // V2 <= Diag(apply(g.wx, 1, FUN = mean) %*% W
         for (i = 0; i < [WX len]; i++) {
             tmp = px[i];
             pg[i] = (1.0 - tmp*tmp) * exp(-(tmp*tmp)/2);
         }
-//[gWX dump];
-//[gWX saveAsKOImage:@"IMG_gwx"];
         tmpMat = [[gWX colMean] diagMatrix];
-[tmpMat saveAsKOImage:@"IMG_tmp"];
-        V2 = [tmpMat multByMat:W];  // ### X
-[V2 saveAsKOImage:@"IMG_V2"];
-//printf("Obj colMean\n"); [[gWX colMean] dump];
-//printf("Obj V2\n"); [V2 dump];
+        V2 = [tmpMat multByMat:W];
 
-    
+    // update W
 		W1 = [V1 subMat:V2];
 		W1 = [W1 orthog];
-[W1 saveAsKOImage:@"IMG_W1"];
 
 	// lim <- max(Mod(Mod(diag(W1 %*% t(W))) - 1))
         tmpMat = [W1 multByMat:[W trans]];  // trans does not change self
-
-// ============ 7/4
 
 		px = [tmpMat data];
 		lim = 0;
@@ -1075,20 +1036,25 @@ if (0) {    // calc from U
 			tmp = fabs(fabs(px[i * nc + i]) - 1);
 			if (tmp > lim) lim = tmp;
 		}
-printf("%d %e\n", iter, lim);
+        printf("%d %e\n", iter, lim);
 		if (lim < tol) break;
 		W = W1;
         
 	}   // iteration
 
-	// calc "Y"
-	Vtnc = [NumMatrix matrixOfType:NUM_REAL nRow:nc nCol:p];
-	[Vtnc copyMatrix:[res objectForKey:@"Vt"]];
-	
-	Y = [[W trans] multByMat:Vtnc];
+	// Vt (PCAt)
+
+    // U (PCA), Y (ICA)
+    Unc = [NumMatrix matrixOfType:NUM_REAL nRow:p nCol:nc];
+    [Unc copyMatrix:U];
+    Y = [W multByMat:[Unc trans]];
+
+    // WSg not done yet
 
 	return [NSDictionary dictionaryWithObjectsAndKeys:
-				[WX trans], @"WX", Y, @"Y", W, @"W", nil]; // X, W, WX, Y
+                [Unc trans], @"U", Vtnc, @"Vt", [Sgnc diagToCol], @"Sg", 
+				[WX trans], @"WX", Y, @"Y", W, @"W", 
+                [W multByMat:[Sgnc diagToCol]], @"WSg", nil]; // X, W, WX, Y
 }
 
 // RecImage

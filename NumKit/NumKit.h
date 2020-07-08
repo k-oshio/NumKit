@@ -182,6 +182,7 @@ typedef struct {
 - (NumMatrix *)copy;	// copy object
 - (NumMatrix *)trans;
 - (NumMatrix *)diagMatrix;			// make diag mat with single col or single row mat
+- (NumMatrix *)diagToCol;              // make row vector from diag matrix
 - (void)copyMatrix:(NumMatrix *)m;		// copy data, size can be different
 - (NumMatrix *)multByMat:(NumMatrix *)m;
 - (NumMatrix *)multByConst:(float)a;

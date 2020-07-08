@@ -1149,7 +1149,7 @@ test17()
 void
 test18()
 {
-	RecImage		*img, *img_a, *img_u, *img_e, *tmp;
+	RecImage		*img, *img_a, *img_tm, *img_sp, *tmp;
 	NumMatrix		*A;
 	int				xDim, yDim;
     int             tDim, iDim;
@@ -1171,7 +1171,6 @@ test18()
 		}
 		exit(0);
 	}
-
 
 // ==== new test image set
 
@@ -1199,39 +1198,59 @@ test18()
 	A = [img_a toMatrix];
 
 // PCA (new interface)
-	if (1) {
+	if (0) {
 		printf("new interface\n");
 		res = [A svd];
-//		img_u = Num_m_to_im(sres->U);
-		img_u = [[res objectForKey:@"U"] toRecImage];
-		[img_u trans];
-		[img_u saveAsKOImage:@"IMG_Ut"];	// Ut
+		img_tm = [[res objectForKey:@"U"] toRecImage];
+		[img_tm trans];
+		[img_tm saveAsKOImage:@"IMG_PCAt"];	// Ut
 
-//		tmp = Num_m_to_im(sres->Vt);
 		tmp = [[res objectForKey:@"Vt"] toRecImage];
-//		[tmp saveAsKOImage:@"IMG_Vt"];
-		img_e = [RecImage imageWithImage:img];
-		[img_e copyImageData:tmp];
-		[img_e saveAsKOImage:@"IMG_PCA"];
+		img_sp = [RecImage imageWithImage:img];
+		[img_sp copyImageData:tmp];
+		[img_sp saveAsKOImage:@"IMG_PCA"];
 	}
 
 // == ICA
 	if (1) {
-		int nc = 10;
+		int nc = 20;    // 24
+        RecImage    *bold, *nci, *at, *col;
 		printf("ICA (new interface)\n");
 		res = [A icaForNC:nc];
-
-		img_u = [[res objectForKey:@"WX"] toRecImage];
-if ([img_u checkNaN]) printf("NaN found\n");
-		[img_u trans];
-		[img_u saveAsKOImage:@"IMG_WX"];	// WX
-  exit(0);      
-		img_u = [[res objectForKey:@"W"] toRecImage];
-		[img_u saveAsKOImage:@"IMG_W"];	// W
-		img_e = [img copy];
-		[img_e crop:[img_e zLoop] to:nc startAt:0];
-		[img_e copyImageData:[[res objectForKey:@"Y"] toRecImage]]; // -> make "copyMatrixData" method
-		[img_e saveAsKOImage:@"IMG_Y"];
+        img_sp = [img copy];
+        [img_sp crop:[img_sp zLoop] to:nc startAt:0]; // chk
+// *PCA (U)
+        tmp = [[res objectForKey:@"U"] toRecImage];
+        [img_sp copyImageData:[[res objectForKey:@"U"] toRecImage]];
+        [img_sp saveAsKOImage:@"IMG_PCA"];
+// *PCAt (Vt)
+        img_tm = [[res objectForKey:@"Vt"] toRecImage];
+        [img_tm saveAsKOImage:@"IMG_PCAt"];
+// PCA sg
+        tmp = [res objectForKey:@"Sg"];
+        [tmp saveAsKOImage:@"IMG_Sg"];
+// *ICA (Y) 
+        [img_sp copyImageData:[[res objectForKey:@"Y"] toRecImage]]; // -> make "copyMatrixData" method
+        [img_sp saveAsKOImage:@"IMG_ICA"];
+// *color map
+        bold = [img_sp sliceAtIndex:0];
+        nci  = [img_sp sliceAtIndex:3];
+        at   = [img_sp sliceAtIndex:2];
+        [bold magnitude];
+        [nci magnitude];
+        [at magnitude];
+        col = [img_sp makeColorWithR:at G:nci B:bold];
+        [col saveAsKOImage:@"IMG_col"];
+// *ICAt (WX)
+		img_tm = [[res objectForKey:@"WX"] toRecImage];
+		[img_tm trans];
+		[img_tm saveAsKOImage:@"IMG_ICAt"];	// WX
+// *ICA W
+		img_tm = [[res objectForKey:@"W"] toRecImage];
+		[img_tm saveAsKOImage:@"IMG_W"];	// W
+// *ICA sg
+        tmp = [res objectForKey:@"WSg"];
+        [tmp saveAsKOImage:@"IMG_WSg"];
 	}
 }
 
