@@ -1239,7 +1239,7 @@ test18()
         [bold magnitude];
         [nci magnitude];
         [at magnitude];
-        col = [img_sp makeColorWithR:at G:nci B:bold];
+        col = [img_sp makeColorWithR:nci G:bold B:at];
         [col saveAsKOImage:@"IMG_col"];
 // *ICAt (WX)
 		img_tm = [[res objectForKey:@"WX"] toRecImage];
