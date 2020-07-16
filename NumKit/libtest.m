@@ -55,7 +55,7 @@ int main(int argc, const char * argv[])
 	//	test14();	// covariance
 	//	test15();	// Mat <-> RecImage conversion
 	//	test16();	// phase graph
-	//	test17();	// eigenvalue
+	//	test17();	// eigenvalue, SVD
 		test18();	// SVD / ICA (NCI)
 	//	test19();   // ICA (pdf)
 	//	test20();   // ICA (separation)
@@ -1198,21 +1198,66 @@ test18()
 	A = [img_a toMatrix];
 
 // PCA (new interface)
-	if (0) {
+	if (0) {	// definition test
+		NumMatrix *B, *Vt, *U, *S;
 		printf("new interface\n");
+		res = [A svd];
+		Vt = [res objectForKey:@"Vt"];
+		S = [res objectForKey:@"S"];
+		U = [res objectForKey:@"U"];
+		B = [S multByMat:Vt];
+		B = [U multByMat:B];
+	//	B = [B subMat:A];
+		[B saveAsKOImage:@"IMG_B"];
+	exit(0);
+	}
+
+// ===	 projection onto non-orthogonal response vectors		
+	if (1) {
+		int 	nc = 50;
+		float	*resp, *p, sum;
+		float	*sg;
+		int		i, j, n;
+
 		res = [A svd];
 		img_tm = [[res objectForKey:@"U"] toRecImage];
 		[img_tm trans];
+		[img_tm crop:[img_tm yLoop] to:nc startAt:0];
 		[img_tm saveAsKOImage:@"IMG_PCAt"];	// Ut
 
 		tmp = [[res objectForKey:@"Vt"] toRecImage];
 		img_sp = [RecImage imageWithImage:img];
 		[img_sp copyImageData:tmp];
+        [img_sp crop:[img_sp zLoop] to:nc startAt:0]; // chk
 		[img_sp saveAsKOImage:@"IMG_PCA"];
+
+		sg = [(NumMatrix *)[res objectForKey:@"S"] data];
+		n = [img_tm xDim];
+		resp = (float *)malloc(sizeof(float) * n);
+		for (j = 0; j < n; j++) {
+		//	if (j < n/2) {
+			if (j > 50 && j < n/2 + 50) {
+				resp[j] = 0.5;
+			} else {
+				resp[j] = -0.5;
+			}
+		//	printf("%d %f\n", j, resp[j]);
+		}
+		for (i = 0; i < nc; i++) {
+			sum = 0;
+			p = [img_tm data] + n * i;
+			for (j = 0; j < n; j++) {
+				sum += resp[j] * p[j];
+			}
+			printf("%d %f\n", i, sum/n * sg[i * n + i]);
+		}
+		
+
+		exit(0);
 	}
 
 // == ICA
-	if (1) {
+	if (0) {
 		int nc = 20;    // 24
         RecImage    *bold, *nci, *at, *col;
 		printf("ICA (new interface)\n");
