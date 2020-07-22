@@ -149,7 +149,7 @@ typedef struct {
 - (void)clear;
 - (void)normal;
 - (void)ramp;
-- (NumMatrix *)diagMatrix;
+- (NumMatrix *)diagMat;
 
 @end
 
@@ -181,7 +181,7 @@ typedef struct {
 // self is not altered
 - (NumMatrix *)copy;	// copy object
 - (NumMatrix *)trans;
-- (NumMatrix *)diagMatrix;			// make diag mat with single col or single row mat
+- (NumMatrix *)diagMat;			// make diag mat with single col or single row mat
 - (NumMatrix *)diagToCol;              // make row vector from diag matrix
 - (void)copyMatrix:(NumMatrix *)m;		// copy data, size can be different
 - (NumMatrix *)multByMat:(NumMatrix *)m;

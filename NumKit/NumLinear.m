@@ -85,7 +85,7 @@
 	}
 }
 
-- (NumMatrix *)diagMatrix   // row to diag
+- (NumMatrix *)diagMat   // row to diag
 {
 	int			i, n = [self length];
 	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:n nCol:n];
@@ -583,7 +583,7 @@
 	return m;
 }
 
-- (NumMatrix *)diagMatrix			// make diag mat with single col or single row mat
+- (NumMatrix *)diagMat			// make diag mat with single col or single row mat
 {
 	NumMatrix	*m = [NumMatrix matrixOfType:type nRow:len nCol:len];
 	int			i;
@@ -945,7 +945,7 @@
 		free(adata);
 	}
 	// make diag mat
-	S = [sv diagMatrix];
+	S = [sv diagMat];
 
 	// make dict
 	return [NSDictionary dictionaryWithObjectsAndKeys:U, @"U", S, @"S", Vt, @"Vt", nil];
@@ -979,7 +979,7 @@
     float           *p1, *p2, *q;
 	
 	int				iter, maxIter = 1000; // 1000  -> should be smaller
-	float			lim, tmp, tol = 1.0e-6;
+	float			lim, tmp, tol = 1.0e-5;
 
 	n = nRow;	    // number of samples
 	p = nCol;	    // number of pixels
@@ -1020,7 +1020,7 @@
             tmp = px[i];
             pg[i] = (1.0 - tmp*tmp) * exp(-(tmp*tmp)/2);
         }
-        tmpMat = [[gWX colMean] diagMatrix];
+        tmpMat = [[gWX colMean] diagMat];
         V2 = [tmpMat multByMat:W];
 
     // update W
