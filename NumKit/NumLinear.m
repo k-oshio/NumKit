@@ -1047,14 +1047,12 @@
     // U (PCA), Y (ICA)
     Unc = [NumMatrix matrixOfType:NUM_REAL nRow:p nCol:nc];
     [Unc copyMatrix:U];
+    Unc = [Unc multByMat:Sgnc];
     Y = [W multByMat:[Unc trans]];
-
-    // WSg not done yet
 
 	return [NSDictionary dictionaryWithObjectsAndKeys:
                 [Unc trans], @"U", Vtnc, @"Vt", [Sgnc diagToCol], @"Sg", 
-				[WX trans], @"WX", Y, @"Y", W, @"W", 
-                [W multByMat:[Sgnc diagToCol]], @"WSg", nil]; // X, W, WX, Y
+				[WX trans], @"WX", Y, @"Y", W, @"W", [W multByMat:[Sgnc diagToCol]], @"WSg", nil];
 }
 
 // RecImage
