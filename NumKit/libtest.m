@@ -40,7 +40,7 @@ int main(int argc, const char * argv[])
     @autoreleasepool {
     //	test0();    //Machine EPS = 1.4013e-45 (iter = 149)
     //	test1();    // brak / brent
-    //	test2();	// LS, marq & conj
+    	test2();	// LS, marq & conj
     //	test3();    // stat
     //	test4();    // t-test / F-test
     //	test5();    // complex t-test
@@ -48,7 +48,7 @@ int main(int argc, const char * argv[])
     //	test7();	// gaussj
     //	test8();    // pinv
     //	test9();    // jacobi (test case for lapack interface)
-    //	test10();   // tri-exponential
+    //	test10();   // bi-ex, tri-exponential
     //	test11();   // Powell
 	//	test12();	// rk4
 	//	test13();   // radial
@@ -56,7 +56,7 @@ int main(int argc, const char * argv[])
 	//	test15();	// Mat <-> RecImage conversion
 	//	test16();	// phase graph
 	//	test17();	// eigenvalue, SVD
-		test18();	// SVD / ICA (NCI)
+	//	test18();	// SVD / ICA (NCI)
 	//	test19();   // ICA (pdf)
 	//	test20();   // ICA (separation)
 	//	test21();	// NumMatrix
@@ -126,102 +126,183 @@ test1()
 float   tm[10]   = {  30,   50,   80,  100,  200, 400, 1000};
 float   data[10] = {2078, 1917, 1843, 1790, 1472, 959,  450};
 int     ndata = 7;
-int     nparam = 2;
+//int     nparam = 2;
+
+void
+a_to_tau(float b1, float b2, float *t1, float *t2)
+{
+    float   r1, r2;
+    float   c;
+
+    c = 2*b2;
+    if (c < 0) c = 0; // single
+    c = sqrt(c);  // 0.125 should be 1 -> chk forward
+//c = 1.4; // should be close to this
+
+    r1 = -b1 + c;
+    r2 = -b1 - c;
+    if (r2 <= 0) {
+        *t2 = 100;
+    } else {
+        *t2 = 1.0/r2;
+    }
+    *t1 = 1.0/r1;
+}
+
+float
+biex_eval(float a1, float t1, float a2, float t2, float *data, int nd)
+{
+    float   mse, s;
+    int     i;
+
+    mse = 0;
+    for (i = 0; i < nd; i++) {
+        s = a1 * exp(-tm[i] / t1) + a2 * exp(-tm[i] / t2);
+        mse += (s - data[i]) * (s - data[i]);
+    }
+    return sqrt(mse/nd);
+}
+
+void
+biex_dump(float a1, float t1, float a2, float t2, float tmax)
+{
+    int     i;
+    float   t, s;
+
+    for (i = 0; i < 100; i++) {
+        t = (float)i * tmax / 100;
+        s = a1 * exp(-t / t1) + a2 * exp(-t / t2);
+        printf("%f %f\n", t, s);
+    }
+}
+
+float
+Exp_rand(float sd)
+{
+    float   v;
+    v = Num_nrml(0, sd);
+    if (v >= 0) {
+        return v*v;
+    } else {
+        return -v*v;
+    }
+}
 
 void
 test2()
 {
-	int         i, iter = 0;
-	int			mode = 0; // 0:conj gr, 1:marquardt
-    float       minval = 0;
-    Num_data    *d;
-    Num_param   *p;
-    Num_range   *r;
-    float       xmin, xmax, ymin, ymax;
-    float   (^cost)(float *);
-    float   (^model)(float x, float *p, float *dydp);
-    cost = ^float(float *ptry) {
-        int     i;
-        float   val, cst = 0;
-        for (i = 0; i < ndata; i++) {
-            val = model(tm[i], ptry, NULL);
-            val -= data[i];
-            cst += val*val / ndata;    // MSE
-        }
-        return cst;    
-    };
-    model = ^float(float x, float *p, float *dydp) {
-		float   e1;
-		float   y;
-	// eval func val at x
-		e1 = exp(-x * p[1]);
-		y = p[0] * e1;
-	// gradient at x
-		if (dydp != NULL) {
-			dydp[0] = e1;
-			dydp[1] = -p[0] * x * e1;
-		}
-		return y;
-	};
+    RecImage    *X, *B, *A, *C;
+    float       *px, *pb, *pa, *pc;
+    float       a, t;
+    float       tm_n;
+    float       scale_tm, scale_a;
+    int         i, j;
+    int         order = 3;  // 5
+    float       m1, m2, t1, t2;
+    float       dm1, dm2, dt1, dt2;
+    float       sdm, sdt;
+    float       mse, mse0;
 
-// alloc param struct
-    d = Num_alloc_data(ndata);
-    p = Num_alloc_param(nparam);
-    r = Num_alloc_range(nparam);
-// set data
-    for (i = 0; i < ndata; i++) {
-        d->x[i] = tm[i];
-        d->y[i] = data[i];
-    }
+//  basis:  xDim = nparam, yDim = ndata
+//  data:   xDim = 1, yDim = ndata
 
-// normalize
+// generate
     if (1) {
-        Num_normalize_data(d);
+        float       pd1 = 4000;
+        float       pd2 = 1000;
+        float       tc1 = 100;
+        float       tc2 = 600;
+        for (i = 0; i < ndata; i++) {
+            data[i] = pd1 * exp(-tm[i] / tc1) + pd2 * exp(-tm[i] / tc2);
+        }
+    }
+// chk input (before scaling)
+    if (0) {
+        for (i = 0; i < ndata; i++) {
+            printf("%f %f\n", tm[i], data[i]);
+        }
+    }
+            
+// set input
+    A = [RecImage imageOfType:RECIMAGE_REAL xDim:order yDim:ndata];
+    B = [RecImage imageOfType:RECIMAGE_REAL xDim:1 yDim:ndata];
+    pa = [A data];
+    pb = [B data];
+    scale_tm = tm[ndata-1];
+    scale_a  = data[0];
+    for (i = 0; i < ndata; i++) {
+        tm_n = tm[i] / scale_tm;
+        pb[i] = log(data[i]);
+        pa[i*order] = 1.0;
+        for (j = 1; j < order; j++) {
+            pa[i*order + j] = pa[i*order + j - 1] * tm_n;
+        }
+    }
+    [A saveAsKOImage:@"IMG_A"];
+    [B saveAsKOImage:@"IMG_B"];
+// chk input (log)
+    if (1) {
+        for (i = 0; i < ndata; i++) {
+            printf("%f %f\n", tm[i], pb[i]);
+        }
     }
 
-// initial estimate (scaled space)
-if (1) {
-    ymin = d->y[ndata - 1];
-    ymax = d->y[0];
-    xmin = d->x[0];
-    xmax = d->x[ndata - 1];
-    p->data[0] = ymax;
-	p->min[0] = 0.0;
-	p->max[0] = 2.0;
-    p->data[1] =  log(ymax / ymin) / (xmax - xmin);
-	p->min[1] = 0.1;
-	p->max[1] = 10.0;
-
-    printf("initial guess: p0:%8.2g, p1:%8.2g\n", p->data[0], p->data[1]);
-} else {
-// global search
-    printf("global search\n");
-    r->min[0] = d->y[0] * 0.8;
-    r->inc[0] = 0.1;
-    r->steps[0] = 5;
-    r->min[1] = d->x[ndata - 1] * 0.2;
-    r->inc[1] = 0.2;
-    r->steps[1] = 10;
-
-    Num_search_min(d, p, r, model);
-    printf("initial guess: p0:%8.2g, p1:%8.2g\n", p->data[0], p->data[1]);
-}
-
-// minimization (Numerical Recipe, p321)
-    if (mode == 0) {
-        iter = Num_least_sq(d, p, model, &minval);   // conj grad
-    } else {
-     //   iter = Num_marquardt(d, p, model, &minval);  // m & l
+    X = Num_least_sq(B, A, &mse); // pseudo inverse
+//    printf("mse = %f\n", mse);
+    px = [X data];
+    for (i = 0; i < order; i++) {
+        printf("%d %f\n", i, px[i]);
     }
 
-    printf("result:    a0 = %f, a1 = %f, min = %f (%%) (%d iterations)\n",
-        p->data[0] * d->yscale, p->data[1] / d->xscale * 1000, sqrt(minval) * 100, iter);
-    printf("===========================================================\n");
-    printf("ref(conj): a0 = 2132.442871, a1 = 1.803731, min = 2.599068 (%%) (3 iterations)\n");
-//    printf("ref(ml),  : a0 = 2132.422119, a1 = 1.803796, min = 6.876489 (%%) (3 iterations)\n");
-    Num_free_data(d);
-    Num_free_param(p);
-    Num_free_range(r);
+// expand -> continuous ###
+    for (i = 0; i < 100; i++) {
+        a = 0;
+        t = (float)i / 100;
+        for (j = 0; j < order; j++) {
+            a += px[j] * pow(t, j);
+        }
+        printf("%f %f\n", t*scale_tm, a);
+    }
+
+// first estimate assuming frac = 0.5
+    a_to_tau(px[1], px[2], &t1, &t2);
+    printf("t1 / t2 = %f, %f\n", t1*scale_tm, t2*scale_tm);
+
+// dump
+    m1 = m2 = exp(px[0])/2;
+    t1 *= scale_tm;
+    t2 *= scale_tm;
+ //   biex_dump(m1, t1, m2, t2, tm[ndata-1] * 1.1);
+
+    mse0 = biex_eval(m1, t1, m2, t2, data, ndata);
+    printf("initial mse = %f\n", mse0);
+
+    // simplified simulated annealing
+    sdm = m1 * 0.01; // 0.005
+    sdt = (t1 + t2) * 0.01;    // 0.005
+    for (i = 0; i < 1000000; i++) {
+        // add gaussian delta
+        dm1 = Num_nrml(0, sdm);
+        dm2 = Num_nrml(0, sdm);
+        dt1 = Num_nrml(0, sdt);
+        dt2 = Num_nrml(0, sdt);
+//        dm1 = Exp_rand(sdm);  // gaussian is better
+//        dm2 = Exp_rand(sdm);
+//        dt1 = Exp_rand(sdt);
+//        dt2 = Exp_rand(sdt);
+        mse = biex_eval(m1+dm1, t1+dt1, m2+dm2, t2+dt2, data, ndata);
+        if (mse < mse0) {
+            printf("%d %f\n", i, mse);
+        //    printf("%8.4f %8.4f\n", t1, t2);
+            mse0 = mse;
+            m1 += dm1;
+            t1 += dt1;
+            m2 += dm2;
+            t2 += dt2;
+        }
+    }
+//    biex_dump(m1, t1, m2, t2, tm[ndata-1] * 1.1);
+    printf("m1/m2, t2/t2 = %f/%f, %f/%f\n", m1, m2, t1, t2);
 }
 
 //float betacf(float a, float b, float x);
@@ -773,6 +854,8 @@ test9()
 	free(work);
 }
 
+// linear fitting -> NNLS
+// try simulated annealing (for bi-exponential)
 void
 test10()
 {
@@ -782,14 +865,14 @@ test10()
     Num_mat     *A, *B;
     Num_vec     *x, *s, *e;
     int         i, j;
-    int         np = 3;
+    int         np = 2;
     int         nd = 7;
 
-    printf("Tri-exponential, linear fitting\n");
+//    printf("Tri-exponential, linear fitting\n");
 
-    d[0] = 0.2;
-    d[1] = 1.5;
-    d[2] = 4.0;
+    d[0] = 0.6;
+    d[1] = 4.0;
+    d[2] = 16.0;
 
 // alloc param struct
     dd = Num_alloc_data(nd);

@@ -87,55 +87,40 @@ Num_search_min(Num_data *d, Num_param *p, Num_range *r, float (^model)(float x, 
     Num_free_param(ptry);
     return 0;
 }
-
+// =====
+// least squares using pseudo inverse
+// =====
+// return val : mse
 // data  : in
-// param : in (initial est) / out (result)
-// model : pointer to model function. input is indep var x, param array pp, and dy/dp array.
-// minval: minimum value of cost function (sq error).
-int
-Num_least_sq(Num_data *data, Num_param *param, float (^model)(float x, float *p, float *dy), float *mse)
+// param : out (result)
+// model : pointer to model function
+RecImage *
+Num_least_sq(RecImage *data, RecImage *basis, float *mse) // pseudo inverse
 {
-    int     np      = param->n;
-    int     nd      = data->n;
-    float   *x      = data->x;
-    float   *y      = data->y;
-    float   *dydp;
-	int     iter;
+    int         i, nr, nc;
+    Num_mat     *A, *B, *X;
+    RecImage    *param;
 
-    float   (^cost)(float *);
-    void    (^dcost)(float *, float *);
+    nr = [basis yDim];
+    nc = [basis xDim];
 
-    dydp = (float *)malloc(sizeof(float) * np);
+// alloc
+    A = Num_im_to_m(basis);
+    B = Num_im_to_m(data);
+    X = Num_new_mat(nr, 1);
 
-    cost = ^float(float *p) {
-        int     i;
-        float   val, cst = 0;
-        for (i = 0; i < nd; i++) {
-            val = model(x[i], p, NULL);
-            val -= y[i];
-            cst += val*val / nd;    // MSE
-        }
-        return cst;    
-    };
-    dcost = ^(float *p, float *gr) {
-        int     i, j;
-        float   val, e;
+// pseudo-inverse 
+    Num_inv(X, A, B);    // solve AX = B
 
-        for (j = 0; j < np; j++) {
-            gr[j] = 0;
-        }
-        for (i = 0; i < nd; i++) {
-            val = model(x[i], p, dydp);
-            e = val - y[i];
-            for (j = 0; j < np; j++) {
-                gr[j] += 2 * e * dydp[j] / nd;
-            }
-        }
-    };
+// set result
+    param = Num_m_to_im(X);
 
-    iter = Num_conjgr(param, cost, dcost, mse);
-    free(dydp);
-    return iter;
+// free
+    Num_free_mat(A);
+    Num_free_mat(B);
+    Num_free_mat(X);
+
+    return param;
 }
 
 int

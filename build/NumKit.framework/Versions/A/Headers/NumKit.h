@@ -230,10 +230,9 @@ float	beta(float a, float b);				// beta function
 void        Num_error(char *msg);   // error exit
 
 // === Minimization / Least squares ===
+RecImage *Num_least_sq(RecImage *data, RecImage *basis, float *mse); // pseudo inverse
         // non-linear least squares (uses conj gr)
 int         Num_least_sq_old(Num_data *data, Num_param *param, float (*model)(float x, float *p, float *dy), float *mse);
-int         Num_least_sq(Num_data *data, Num_param *param, float (^model)(float x, float *p, float *dy), float *mse);
-        // conjugate gradient
 int         Num_conjgr(Num_param *param, float (^cost)(float *p), void (^dcost)(float *p, float *dy), float *minval);
         // conjugate direction
 int         Num_powell(Num_param *param, float(^cost)(float *p), float *minval);

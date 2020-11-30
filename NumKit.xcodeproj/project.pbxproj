@@ -8,10 +8,11 @@
 
 /* Begin PBXBuildFile section */
 		B40D65C71C3BD20B00D88027 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4C8EB2A1C3A6CBE006CF8D4 /* Accelerate.framework */; };
+		B417591C2562BCF8009CB51F /* phasor.m in Sources */ = {isa = PBXBuildFile; fileRef = B417591B2562BCF8009CB51F /* phasor.m */; };
 		B41FD79B18D4238500C9194E /* NumLinear.m in Sources */ = {isa = PBXBuildFile; fileRef = B41FD79A18D4238500C9194E /* NumLinear.m */; };
 		B41FD79D18D42AD400C9194E /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B41FD79C18D42AD400C9194E /* Accelerate.framework */; };
 		B41FD79F18D42AF000C9194E /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B41FD79E18D42AF000C9194E /* Foundation.framework */; };
-		B4300C101D2D073E00E13BB7 /* NumSpin.m in Sources */ = {isa = PBXBuildFile; fileRef = B4300C0F1D2D073E00E13BB7 /* NumSpin.m */; settings = {ASSET_TAGS = (); }; };
+		B4300C101D2D073E00E13BB7 /* NumSpin.m in Sources */ = {isa = PBXBuildFile; fileRef = B4300C0F1D2D073E00E13BB7 /* NumSpin.m */; };
 		B43AB25716D626D100D85767 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B43AB25616D626D100D85767 /* Foundation.framework */; };
 		B43AB25A16D626D100D85767 /* libtest.m in Sources */ = {isa = PBXBuildFile; fileRef = B43AB25916D626D100D85767 /* libtest.m */; };
 		B44C54881A3AD8D600405BE7 /* libNumKit.a in Resources */ = {isa = PBXBuildFile; fileRef = B4A99C0816DF2DA000347352 /* libNumKit.a */; };
@@ -33,10 +34,10 @@
 		B4B706B71C3FA61C0085D081 /* RecKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4B706B11C3FA0AC0085D081 /* RecKit.framework */; };
 		B4BA9AC818506A5700D1C3B6 /* NumStatistics.m in Sources */ = {isa = PBXBuildFile; fileRef = B4BA9AC718506A5700D1C3B6 /* NumStatistics.m */; };
 		B4BA9AC918506D5900D1C3B6 /* NumKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4814D04180920E90016214E /* NumKit.framework */; };
-		B4C750201F7FA72200ED4900 /* vDSP.h in Headers */ = {isa = PBXBuildFile; fileRef = B4C7501F1F7FA72200ED4900 /* vDSP.h */; settings = {ASSET_TAGS = (); }; };
+		B4C750201F7FA72200ED4900 /* vDSP.h in Headers */ = {isa = PBXBuildFile; fileRef = B4C7501F1F7FA72200ED4900 /* vDSP.h */; };
 		B4C8EB2B1C3A6CBE006CF8D4 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4C8EB2A1C3A6CBE006CF8D4 /* Accelerate.framework */; };
-		B4CAEEFF1E73D80400B194DB /* NumSpin.m in Sources */ = {isa = PBXBuildFile; fileRef = B4300C0F1D2D073E00E13BB7 /* NumSpin.m */; settings = {ASSET_TAGS = (); }; };
-		B4CAEF001E73D80800B194DB /* NumKit.h in Headers */ = {isa = PBXBuildFile; fileRef = B4814D17180922A50016214E /* NumKit.h */; settings = {ASSET_TAGS = (); }; };
+		B4CAEEFF1E73D80400B194DB /* NumSpin.m in Sources */ = {isa = PBXBuildFile; fileRef = B4300C0F1D2D073E00E13BB7 /* NumSpin.m */; };
+		B4CAEF001E73D80800B194DB /* NumKit.h in Headers */ = {isa = PBXBuildFile; fileRef = B4814D17180922A50016214E /* NumKit.h */; };
 		B4D8B76B18EAA83D0060E7BB /* NumLinear.m in Sources */ = {isa = PBXBuildFile; fileRef = B41FD79A18D4238500C9194E /* NumLinear.m */; };
 /* End PBXBuildFile section */
 
@@ -70,6 +71,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B417591B2562BCF8009CB51F /* phasor.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = phasor.m; path = ../../MRCalc2/MRCalc2/phasor.m; sourceTree = "<group>"; };
 		B41FD79A18D4238500C9194E /* NumLinear.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NumLinear.m; sourceTree = "<group>"; };
 		B41FD79C18D42AD400C9194E /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = ../../../../System/Library/Frameworks/Accelerate.framework; sourceTree = "<group>"; };
 		B41FD79E18D42AF000C9194E /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = ../../../../System/Library/Frameworks/Foundation.framework; sourceTree = "<group>"; };
@@ -198,6 +200,7 @@
 				B43AB26916D629EA00D85767 /* NumMinimization.m */,
 				B4BA9AC718506A5700D1C3B6 /* NumStatistics.m */,
 				B4300C0F1D2D073E00E13BB7 /* NumSpin.m */,
+				B417591B2562BCF8009CB51F /* phasor.m */,
 				B43AB25B16D626D100D85767 /* Supporting Files */,
 			);
 			path = NumKit;
@@ -351,6 +354,7 @@
 			developmentRegion = English;
 			hasScannedForEncodings = 0;
 			knownRegions = (
+				English,
 				en,
 			);
 			mainGroup = B43AB24716D626D100D85767;
@@ -404,6 +408,7 @@
 				B4814D19180922B70016214E /* NumMinimization.m in Sources */,
 				B4BA9AC818506A5700D1C3B6 /* NumStatistics.m in Sources */,
 				B4300C101D2D073E00E13BB7 /* NumSpin.m in Sources */,
+				B417591C2562BCF8009CB51F /* phasor.m in Sources */,
 				B41FD79B18D4238500C9194E /* NumLinear.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
