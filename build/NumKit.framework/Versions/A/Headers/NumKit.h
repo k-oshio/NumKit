@@ -181,6 +181,7 @@ typedef struct {
 // self is not altered
 - (NumMatrix *)copy;	// copy object
 - (NumMatrix *)trans;
+- (NumMatrix *)inv;     // is this necessary ? (use sgetri())
 - (NumMatrix *)diagMat;			// make diag mat with single col or single row mat
 - (NumMatrix *)diagToCol;              // make row vector from diag matrix
 - (void)copyMatrix:(NumMatrix *)m;		// copy data, size can be different
@@ -189,6 +190,8 @@ typedef struct {
 - (NumMatrix *)addMat:(NumMatrix *)m;
 - (NumMatrix *)subMat:(NumMatrix *)m;
 - (NumMatrix *)addConst:(float)a;	// sub not necessary (just make A negative)
+- (NumMatrix *)sqrt;        // element-by-element sqrt
+- (NumMatrix *)matSqrt;    // matrix sqrt
 - (NumMatrix *)colVect:(int)ix;
 - (NumMatrix *)rowVect:(int)ix;
 - (NumMatrix *)selectCol:(int)col;
@@ -208,7 +211,9 @@ typedef struct {
 - (NumMatrix *)solveLinear:(NumMatrix *)B;
 - (NumMatrix *)solveLinearNN:(NumMatrix *)B;	// NNLS
 - (NSDictionary *)svd;				// returns dict with entry: "U", "S", "Vt"
+- (NSDictionary *)evd;              // returns dict with entry: "E", "S"
 - (NSDictionary *)icaForNC:(int)nc;	// returns dict with entry: "WX", Y"
+- (NumMatrix *)matNrml;                   // returns a random number according. self is sqrt of var
 
 // RecImage
 - (RecImage *)toRecImage;
@@ -239,6 +244,7 @@ int         Num_powell(Num_param *param, float(^cost)(float *p), float *minval);
         // Marquardt-Levenberg
 int         Num_marquardt(Num_data *d, Num_param *p, float (*model)(float x, float *pp, float *ddy), float *mse);
         // Data structure
+int         Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model)(Num_param *prm, float x), float *mse);
 Num_data  * Num_alloc_data(int ndata);
 Num_param * Num_alloc_param(int nparam);
 Num_range * Num_alloc_range(int nparam);
@@ -247,6 +253,7 @@ void        Num_free_param(Num_param *p);
 void        Num_free_range(Num_range *r);
 void        Num_normalize_data(Num_data *d);
 void        Num_normalize_y(Num_data *d);
+Num_data  * Num_copy_data(Num_data *d);
 
 // === private / low level ====
 int         Num_search_min(Num_data *d, Num_param *p, Num_range *r, float (^model)(float x, float *p, float *dy));
@@ -327,6 +334,7 @@ void		Num_torm(Num_mat *m);	// convert to row major
 
 // vvvvvvvvvvvvvvvvvvvvvvvvvvv
 // ### implement complex version
+// in-place not supported (size may be different anyway)
 float       Num_dotpr(Num_vec *v1, Num_vec *v2);			// a = v1 * v2
 void        Num_mvmul(Num_vec *b, Num_mat *a, Num_vec *x);	// b = Ax
 void        Num_mmul(Num_mat *c, Num_mat *a, Num_mat *b);	// C = AB
@@ -406,6 +414,8 @@ RecImage *	Num_phase_graph(Num_rf *rf, BOOL cpmg);
 RecImage *	Num_phase_graph_s(Num_rf *rf, BOOL cpmg);	// Scheffler
 
 //=== dbg
+void        Num_dump_data(Num_data *d);
+void        Num_dump_param(Num_param *p);
 void        dump_vec(Num_vec *v);
 void        dump_mat(Num_mat *m);
 void		saveAsKOImage(Num_mat *m, NSString *path);

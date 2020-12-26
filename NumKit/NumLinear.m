@@ -343,6 +343,59 @@
 	return res;
 }
 
+- (NumMatrix *)sqrt
+{
+    NumMatrix    *res;
+    int            i;
+    float        *q, *p1;
+
+    res = [NumMatrix matrixWithMatrix:self];
+    q = [res data];
+    p1 = [self data];
+    for (i = 0; i < len; i++) {
+        if (p1[i] > 0) {
+            q[i] = sqrt(p1[i]);
+        } else {
+            q[i] = 0;
+        }
+    }
+
+    return res;
+}
+
+- (NumMatrix *)matSqrt
+{
+    NumMatrix       *SRT, *E, *S;
+    NSDictionary    *res;
+
+    res = [self evd];
+    E = [res objectForKey:@"E"];
+    S = [res objectForKey:@"S"];
+    SRT = [[E multByMat:[S sqrt]] multByMat:[E trans]];
+
+//    SRT = [SRT multByMat:SRT]; // chk
+//    [SRT dump];
+//    [self dump];
+//    exit(0);
+
+    return SRT;
+}
+
+- (NumMatrix *)matNrml    // returns a random number according. self is sqrt of var
+{
+    NumMatrix   *v;     // vector
+    float       *p;
+    int         i;
+
+    v = [NumMatrix matrixOfType:NUM_REAL nRow:nCol nCol:1];
+    p = [v data];
+    for (i = 0; i < nCol; i++) {
+        p[i] = Num_nrml(0, 1);
+    }
+    v = [self multByMat:v];
+    return v;
+}
+
 // C = AB
 - (NumMatrix *)multByMat:(NumMatrix *)m
 {
@@ -949,6 +1002,53 @@
 
 	// make dict
 	return [NSDictionary dictionaryWithObjectsAndKeys:U, @"U", S, @"S", Vt, @"Vt", nil];
+}
+
+// not tested yet
+- (NSDictionary *)evd              // returns dict with entry: "E", "S"
+{
+    NumMatrix       *E, *S;
+    NumVector       *sv;
+    float           *rwork, *cwork, *adata;
+    float           *p;
+    int             lwork, info;
+    int             i, n, ld;
+
+    if (nRow != nCol) {
+        printf("A has to be symmetric matrix\n");
+        return nil;
+    }
+    n = ld = nRow;
+
+    E  = [NumMatrix matrixOfType:type nRow:n nCol:n];
+    sv = [NumVector vectorOfType:type length:n];
+    adata = [E data];
+
+    if (type == NUM_REAL) {
+        // copy A
+        p = [self data];
+        for (i = 0; i < n*n; i++) {
+            adata[i] = p[i];
+        }
+        // get work size
+        lwork = -1;
+        rwork = (float *)malloc(sizeof(float) * 1);
+        ssyev_("V", "U", &n, [E data], &ld, [sv data], rwork, &lwork, &info);
+        lwork = rwork[0];
+        free(rwork);
+        // actual proc
+        rwork = (float *)malloc(sizeof(float) * lwork);
+        ssyev_("V", "U", &n, [E data], &ld, [sv data], rwork, &lwork, &info);
+        free(rwork);
+    } else {
+    // not implemented yet
+    }
+
+    // make diag mat
+    S = [sv diagMat];
+
+    // make dict
+    return [NSDictionary dictionaryWithObjectsAndKeys:E, @"E", S, @"S", nil];
 }
 
 - (NSDictionary *)icaForNC:(int)nc	// returns dict with entry: "XW", "Y", "U", "Vt"
@@ -1993,20 +2093,21 @@ Num_grmsch(Num_mat *a)
 }
 
 // complex not done yet ###
+// caller has to alloc return structure (Evec, eval)
 void
 Num_evd_ref(Num_mat *A, Num_mat *Evec, Num_vec *eval)
 {
 	float		*work;
 	int			lwork, info;
-	int			n;
+//	int			n;
 
 	if (A->nr != A->nc) {
 		printf("A is not square\n");
 		return;
 	}
 	// copy input (no side effects)
-	n = A->nr;
-	Evec = Num_new_mat(n, n);
+//	n = A->nr;
+//	Evec = Num_new_mat(n, n);
 	Num_copy_mat(Evec, A);
 
 	// get work size

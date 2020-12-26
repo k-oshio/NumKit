@@ -128,54 +128,70 @@ float   data[10] = {2078, 1917, 1843, 1790, 1472, 959,  450};
 int     ndata = 7;
 //int     nparam = 2;
 
+// ###
 void
-a_to_tau(float b1, float b2, float *t1, float *t2)
+a_to_tau(Num_param *p, Num_param *e)
 {
+    float   a1, a2;
     float   r1, r2;
     float   c;
 
-    c = 2*b2;
+    a1 = p->data[1];
+    a2 = p->data[2];
+    c = 2.0 * a2; 
     if (c < 0) c = 0; // single
-    c = sqrt(c);  // 0.125 should be 1 -> chk forward
-//c = 1.4; // should be close to this
+    c = sqrt(c);
 
-    r1 = -b1 + c;
-    r2 = -b1 - c;
+    r1 = -a1 + c;
+    r2 = -a1 - c;
     if (r2 <= 0) {
-        *t2 = 100;
+        e->data[3] = 100;
     } else {
-        *t2 = 1.0/r2;
+        e->data[3] = 1.0 / r2;
     }
-    *t1 = 1.0/r1;
+    e->data[2] = 1.0 / r1;
+    
+    e->data[0] = e->data[1] = exp(p->data[0])/2;
 }
 
+// ###
 float
-biex_eval(float a1, float t1, float a2, float t2, float *data, int nd)
+biex_eval(Num_param *param, Num_data *data)
 {
     float   mse, s;
     int     i;
+    float   a1, a2, t1, t2;
+
+    a1 = param->data[0]; a2 = param->data[1];
+    t1 = param->data[2]; t2 = param->data[3];
 
     mse = 0;
-    for (i = 0; i < nd; i++) {
-        s = a1 * exp(-tm[i] / t1) + a2 * exp(-tm[i] / t2);
-        mse += (s - data[i]) * (s - data[i]);
+    for (i = 0; i < data->n; i++) {
+        s = a1 * exp(-data->x[i] / t1) + a2 * exp(-data->x[i] / t2);
+        mse += (s - data->y[i]) * (s - data->y[i]);
+printf("%f %f %f\n", data->x[i], data->y[i], s);
     }
-    return sqrt(mse/nd);
+    return sqrt(mse/data->n);
 }
 
+// ###
 void
-biex_dump(float a1, float t1, float a2, float t2, float tmax)
+biex_dump(float *param)
 {
-    int     i;
-    float   t, s;
+    int     i, n = 100;
+    float   t, s, tmax = 1.1;
+    float   a1, a2, t1, t2;
 
-    for (i = 0; i < 100; i++) {
-        t = (float)i * tmax / 100;
+    a1 = param[0]; a2 = param[1];
+    t1 = param[2]; t2 = param[3];
+    for (i = 0; i < n; i++) {
+        t = (float)i * tmax / n;
         s = a1 * exp(-t / t1) + a2 * exp(-t / t2);
         printf("%f %f\n", t, s);
     }
 }
 
+// ###
 float
 Exp_rand(float sd)
 {
@@ -188,126 +204,280 @@ Exp_rand(float sd)
     }
 }
 
-void
-test2()
+// ###
+NumMatrix *
+covar(float *x, float *y, int n)
 {
-    RecImage    *X, *B, *A, *C;
-    float       *px, *pb, *pa, *pc;
-    float       a, t;
-    float       tm_n;
-    float       scale_tm, scale_a;
-    int         i, j;
-    int         order = 3;  // 5
-    float       m1, m2, t1, t2;
-    float       dm1, dm2, dt1, dt2;
-    float       sdm, sdt;
-    float       mse, mse0;
+    int         i;
+    float       xm, ym;
+    float       xv, yv, xy;
+    NumMatrix   *cov;
+    float       *p;
 
-//  basis:  xDim = nparam, yDim = ndata
-//  data:   xDim = 1, yDim = ndata
+    xm = ym = 0;
+    for (i = 0; i < n; i++) {
+        xm += x[i];
+        ym += y[i];
+    }
+    xm /= n;
+    ym /= n;
 
-// generate
-    if (1) {
-        float       pd1 = 4000;
-        float       pd2 = 1000;
-        float       tc1 = 100;
-        float       tc2 = 600;
-        for (i = 0; i < ndata; i++) {
-            data[i] = pd1 * exp(-tm[i] / tc1) + pd2 * exp(-tm[i] / tc2);
-        }
+    xv = yv = xy = 0;
+    for (i = 0; i < n; i++) {
+        xv += (x[i] - xm) * (x[i] - xm);
+        yv += (y[i] - ym) * (y[i] - ym);
+        xy += (x[i] - xm) * (y[i] - ym);
     }
-// chk input (before scaling)
-    if (0) {
-        for (i = 0; i < ndata; i++) {
-            printf("%f %f\n", tm[i], data[i]);
-        }
+    xv /= n;
+    yv /= n;
+    xy /= n;
+
+    cov = [NumMatrix matrixOfType:NUM_REAL nRow:2 nCol:2];
+    p = [cov data];
+    p[0] = xv;  p[2] = xy;
+    p[1] = xy;  p[3] = yv;
+
+    return cov;
+}
+
+// ok .. independent
+void
+gauss_test()
+{
+    int             i, n = 10000;
+    float           *datax, *datay;
+    NumMatrix       *X, *A, *E;
+    float           *ap, *xp;
+
+    A = [NumMatrix matrixOfType:NUM_REAL nRow:2 nCol:2];
+    X = [NumMatrix matrixOfType:NUM_REAL nRow:2 nCol:2];
+
+// set A
+    ap = [A data];
+    ap[0] = 2.0; ap[2] = 0.5;
+    ap[1] = 0.5; ap[3] = 2.0;
+
+    E = [A matSqrt];
+
+    datax = (float *)malloc(sizeof(float) * n);
+    datay = (float *)malloc(sizeof(float) * n);
+    xp = [X data];
+    for (i = 0; i < n; i++) {
+        xp[0] = Num_nrml(0, 1);
+        xp[1] = Num_nrml(0, 1);
+        X = [E multByMat:X];
+        xp = [X data];
+        datax[i] = xp[0];
+        datay[i] = xp[1];
+    //    printf("%f %f\n", datax[i], datay[i]);
     }
-            
-// set input
+    E = covar(datax, datay, n);
+    [E dump];
+}
+
+// ### make block
+float
+model(float x, float *p, float *dydp)
+{
+    float   pd1  = p[0];
+    float   pd2  = p[1];
+    float   tc1  = p[2];
+    float   tc2  = p[3];
+    float   e1, e2;
+    float   y = 0;
+
+    e1 = exp(-x / tc1);
+    e2 = exp(-x / tc2);
+    y = pd1 * e1 + pd2 * e2;
+    if (dydp) {
+        dydp[0] = e1;
+        dydp[1] = e2;
+        dydp[2] = pd1 * x * e1 / tc1 / tc1;
+        dydp[3] = pd2 * x * e2 / tc2 / tc2;
+    }
+    return y;
+}
+
+// move to NumKit when done
+float
+Num_poly_fit(Num_param *param, Num_data *data)
+{
+    float       err;
+    RecImage    *X, *B, *A;
+    float       *px, *pb, *pa;
+    int         i, j, ndata, order;
+
+    ndata = data->n;
+    order = param->n;
+
     A = [RecImage imageOfType:RECIMAGE_REAL xDim:order yDim:ndata];
     B = [RecImage imageOfType:RECIMAGE_REAL xDim:1 yDim:ndata];
     pa = [A data];
     pb = [B data];
-    scale_tm = tm[ndata-1];
-    scale_a  = data[0];
     for (i = 0; i < ndata; i++) {
-        tm_n = tm[i] / scale_tm;
-        pb[i] = log(data[i]);
+        pb[i] = data->y[i];
         pa[i*order] = 1.0;
         for (j = 1; j < order; j++) {
-            pa[i*order + j] = pa[i*order + j - 1] * tm_n;
-        }
-    }
-    [A saveAsKOImage:@"IMG_A"];
-    [B saveAsKOImage:@"IMG_B"];
-// chk input (log)
-    if (1) {
-        for (i = 0; i < ndata; i++) {
-            printf("%f %f\n", tm[i], pb[i]);
+            pa[i*order + j] = pa[i*order + j - 1] * data->x[i];
         }
     }
 
-    X = Num_least_sq(B, A, &mse); // pseudo inverse
-//    printf("mse = %f\n", mse);
+    // solve
+    X = Num_least_sq(B, A, &err); // pseudo inverse
+
+    // copy output to param
     px = [X data];
     for (i = 0; i < order; i++) {
-        printf("%d %f\n", i, px[i]);
+        param->data[i] = px[i];
     }
 
-// expand -> continuous ###
+    return err;
+}
+
+// 4 dim
+void
+global(float (^model)(Num_param *prm, float x))
+{
+    int         i0, i1, i2, i3;
+    Num_param   *param;
+    int         dim = 64;
+    RecImage    *img;
+    float       *p;
+
+    img = [RecImage imageOfType:RECIMAGE_REAL xDim:dim yDim:dim zDim:dim chDim:dim];
+    p = [img data];
+    param = Num_alloc_param(4);
+    for (i0 = 0; i0 < dim; i0++) {
+        param->data[0] = (float)i0 * 1.0 / dim + 0.0;
+        for (i1 = 0; i1 < dim; i1++) {
+            param->data[1] = (float)i1 * 1.0 / dim + 0.0;
+            for (i2 = 0; i2 < dim; i2++) {
+                param->data[2] = (float)i2 * 1.0 / dim + 0.0;
+                for (i3 = 0; i3 < dim; i3++) {
+                    param->data[3] = (float)i3 * 1.0 / dim + 0.0;
+                    model(param, 
+                    p[(((i0 * dim) + i1) * dim + i2) * dim + i3] = err;
+    
+}
+
+void
+test2()
+{
+// tm[], data[], ndata are global -> don't use these directly
+    Num_data    *p_dat;     // log
+    Num_param   *p_prm;     // polynomial coeff
+    Num_data    *e_dat;     // linear
+    Num_param   *e_prm;     // bi-ex coeff
+    float       a, t;
+    int         i, j, niter;
+    int         order = 3;  // 5
+    float       mse, mse0;
+    float       (^model_b)(Num_param *prm, float x);
+    float       (^biex_b)(Num_param *prm, Num_data *dat);
+
+    p_dat = Num_alloc_data(ndata);
+    if (1) { // generate
+        float       pd1 = 3000;
+        float       pd2 = 2000;
+        float       tc1 = 100;
+        float       tc2 = 500;
+        float       nz = 10; //10.0;
+        for (i = 0; i < ndata; i++) {
+            p_dat->x[i] = tm[i];
+            p_dat->y[i] = pd1 * exp(-tm[i] / tc1) + pd2 * exp(-tm[i] / tc2) + Num_nrml(0, nz);
+        }
+    } else {    // copy global test data
+        for (i = 0; i < ndata; i++) {
+            p_dat->x[i] = tm[i];
+            p_dat->y[i] = data[i];
+        }
+    }
+// scale input
+    Num_normalize_data(p_dat);
+// copy to e
+    e_dat = Num_copy_data(p_dat);
+
+    // take log
+    for (i = 0; i < p_dat->n; i++) {
+        p_dat->y[i] = log(p_dat->y[i]);
+    }
+//    Num_dump_data(p_dat);
+
+
+// ======== initial guess using polynomial expantion / least squares =======
+//  polynomial fitting
+    p_prm = Num_alloc_param(order);
+    mse0 = Num_poly_fit(p_prm, p_dat);
+
+//Num_dump_param(p_prm);
+
+// expand -> continuous
     for (i = 0; i < 100; i++) {
         a = 0;
         t = (float)i / 100;
         for (j = 0; j < order; j++) {
-            a += px[j] * pow(t, j);
+            a += p_prm->data[j] * pow(t, j);
         }
-        printf("%f %f\n", t*scale_tm, a);
+        a = exp(a);
+//printf("%f %f\n", t, a);
     }
 
-// first estimate assuming frac = 0.5
-    a_to_tau(px[1], px[2], &t1, &t2);
-    printf("t1 / t2 = %f, %f\n", t1*scale_tm, t2*scale_tm);
+    e_prm = Num_alloc_param(4);
+// first estimate tc assuming frac = 0.5
+    a_to_tau(p_prm, e_prm);
 
-// dump
-    m1 = m2 = exp(px[0])/2;
-    t1 *= scale_tm;
-    t2 *= scale_tm;
- //   biex_dump(m1, t1, m2, t2, tm[ndata-1] * 1.1);
+Num_dump_param(e_prm);
 
-    mse0 = biex_eval(m1, t1, m2, t2, data, ndata);
-    printf("initial mse = %f\n", mse0);
-
-    // simplified simulated annealing
-    sdm = m1 * 0.01; // 0.005
-    sdt = (t1 + t2) * 0.01;    // 0.005
-    for (i = 0; i < 1000000; i++) {
-        // add gaussian delta
-        dm1 = Num_nrml(0, sdm);
-        dm2 = Num_nrml(0, sdm);
-        dt1 = Num_nrml(0, sdt);
-        dt2 = Num_nrml(0, sdt);
-//        dm1 = Exp_rand(sdm);  // gaussian is better
-//        dm2 = Exp_rand(sdm);
-//        dt1 = Exp_rand(sdt);
-//        dt2 = Exp_rand(sdt);
-        mse = biex_eval(m1+dm1, t1+dt1, m2+dm2, t2+dt2, data, ndata);
-        if (mse < mse0) {
-            printf("%d %f\n", i, mse);
-        //    printf("%8.4f %8.4f\n", t1, t2);
-            mse0 = mse;
-            m1 += dm1;
-            t1 += dt1;
-            m2 += dm2;
-            t2 += dt2;
-        }
+// ======== non-linear minimization ==========
+    // global search
+    if (1) {
+        float       (^biex_b)(Num_param *prm, Num_data *dat);
+        global(e_prm, e_dat);
+        exit(0);
     }
-//    biex_dump(m1, t1, m2, t2, tm[ndata-1] * 1.1);
-    printf("m1/m2, t2/t2 = %f/%f, %f/%f\n", m1, m2, t1, t2);
+
+    // chk current fit and MSE (#not correct yet)
+    mse = biex_eval(e_prm, e_dat);
+    printf("initial MSE = %f\n", mse);
+ 
+    // ### not working yet (niter = 0)
+    if (0) {        // try conj gradient for comparison (using same initial guess)
+        float       minval;
+
+        niter = Num_least_sq_old(p_dat, e_prm, model, &minval);
+        for (i = 0; i < 4; i++) {
+            printf("%f ", e_prm->data[i]);
+        }
+        printf("\n");
+        printf("niter = %d, mse = %f\n", niter, minval);
+
+        exit(0);
+    }
+
+// gaussian amoeba (general purpose) ### -> prm, x -> y
+    model_b = ^float(Num_param *prm, float x) {
+                    float   a1, a2, t1, t2;
+                    a1 = prm->data[0];
+                    a2 = prm->data[1];
+                    t1 = prm->data[2];
+                    t2 = prm->data[3];
+                    
+                    if (a1 <= 0 || a2 <= 0 || t1 <= 0 || t2 <= 0) {
+                        return 0;
+                    } else {
+                        return a1 * exp(-x / t1) + a2 * exp(-x / t2);
+                    }
+                };
+    niter = Num_gauss_amoeba(e_prm, e_dat, model_b, &mse);
+
+// int Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model(Num_param *prm)), float *mse)
+
+    Num_dump_param(e_prm);
+
+    Num_free_param(p_prm);
+    Num_free_param(e_prm);
+    Num_free_data(p_dat);
 }
-
-//float betacf(float a, float b, float x);
-//float betai(float a, float b, float x);
-//float tdist(int n, float x);
 
 void
 test3()

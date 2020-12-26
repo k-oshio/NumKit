@@ -123,6 +123,7 @@ Num_least_sq(RecImage *data, RecImage *basis, float *mse) // pseudo inverse
     return param;
 }
 
+// non linear least squares (conjugate gradient)
 int
 Num_least_sq_old(Num_data *data, Num_param *param, float (*model)(float x, float *p, float *dy), float *mse)
 {
@@ -793,12 +794,19 @@ Num_alloc_data(int n)
 Num_param *
 Num_alloc_param(int n)
 {
-    Num_param    *param = (Num_param *)malloc(sizeof(Num_param));
+    Num_param   *param = (Num_param *)malloc(sizeof(Num_param));
+    int         i;
     param->n = n;
     param->data = VECTOR(n);
     param->min = VECTOR(n);
     param->max = VECTOR(n);
-    param->flag = (int *)malloc(sizeof(int) * n);
+    for (i = 0; i < n; i++) {
+        param->min[i] = 0.0;
+        param->max[i] = 1.0;
+    }
+
+//    param->flag = (int *)malloc(sizeof(int) * n);
+
     return param;
 }
 
@@ -831,7 +839,7 @@ Num_free_param(Num_param *p)
         free(p->data);
 		free(p->min);
 		free(p->max);
-        free(p->flag);
+    //    free(p->flag);
         free(p);
     }
 }
@@ -885,6 +893,267 @@ Num_normalize_y(Num_data *d)
     }
     d->xscale = 1;
     d->yscale = ys;
+}
+
+void
+Num_dump_data(Num_data *d)
+{
+    int     i;
+    printf("Num_data (xscale:%f, yscale:%f)\n", d->xscale, d->yscale);
+    for (i = 0; i < d->n; i++) {
+        printf("%f %f\n", d->x[i], d->y[i]);
+    }
+}
+
+Num_data  *
+Num_copy_data(Num_data *d)
+{
+    Num_data    *d2;
+    int         i;
+
+    d2 = Num_alloc_data(d->n);
+    for (i = 0; i < d->n; i++) {
+        d2->x[i] = d->x[i];
+        d2->y[i] = d->y[i];
+    }
+    d2->xscale = d->xscale;
+    d2->yscale = d->yscale;
+
+    return d2;
+}
+
+void
+Num_dump_param(Num_param *p)
+{
+    int     i;
+    printf("Num_param (min/max) = %f / %f\n", p->min, p->max);
+    for (i = 0; i < p->n; i++) {
+        printf("%d %f\n", i, p->data[i]);
+    }
+}
+
+// ========== gaussian amoeba ========
+
+// make this general purpose (dim != 4)
+typedef struct {
+    float   err;    // square error
+    int     dim;
+    float   *x;     // param
+} gs_pt;
+
+// pt is out
+void
+next_gs_pt(gs_pt *pt, Num_param *param, Num_data *data, NumMatrix *cosd, float (^model_b)(Num_param *prm, float x))
+{
+    NumMatrix   *dp;
+    Num_param   *prm = Num_alloc_param(param->n);
+    float       *p, t, val, err;
+    int         i;
+
+// generate step vector with cov
+    dp = [cosd matNrml];
+    p = [dp data];
+    for (i = 0; i < param->n; i++) {
+        prm->data[i] = param->data[i] + p[i];
+    }
+    err = 0;
+    for (i = 0; i < data->n; i++) {
+        t = data->x[i];
+        val = model_b(prm, t);
+        err += (val - data->y[i]) * (val - data->y[i]);
+    }
+    pt->err = sqrt(err);
+    for (i = 0; i < param->n; i++) {
+        pt->x[i] = prm->data[i];
+    }
+    Num_free_param(prm);
+}
+
+void
+copy_gs_pt(gs_pt *pt1, gs_pt *pt2)
+{
+    int     i;
+    pt2->err = pt1->err;
+    for (i = 0; i < pt1->dim; i++) {
+        pt2->x[i] = pt1->x[i];
+    }
+}
+
+// ### mn[4] -> *mn
+NumMatrix *
+calcCov(gs_pt *buf, int bufLen)
+{
+    int         i, j, k, dim;
+    float       var, *mn;   // var, mean
+    NumMatrix   *cov;
+    float       *p;
+
+    dim = buf[0].dim;
+    cov = [NumMatrix matrixOfType:NUM_REAL nRow:dim nCol:dim];
+    p = [cov data];
+    mn = (float *)malloc(sizeof(float) * dim);
+    for (j = 0; j < dim; j++) {
+        // calc mean
+        mn[j] = 0;
+        for (i = 0; i < bufLen; i++) {
+            mn[j] += buf[i].x[j];
+        }
+        mn[j] /= bufLen;
+    }
+// calc covar
+    var = 0;
+    for (j = 0; j < dim; j++) {   // row
+        for (k = j; k < dim; k++) {   // col
+            var = 0;
+            for (i = 0; i < bufLen; i++) {
+                var += (buf[i].x[j] - mn[j]) * (buf[i].x[k] - mn[j]);
+            }
+            var /= bufLen;
+            p[k*dim + j] = var;
+            if (i != k) {
+                p[j*dim + k] = var;
+            }
+        }
+    }
+    free(mn);
+    return cov;
+}
+
+void
+init_gs_pt(gs_pt *pt, int dim)
+{
+    int     i;
+        
+    pt->err = -1;
+    pt->dim = dim;
+    pt->x = (float *)malloc(sizeof(float) * dim);
+    for (i = 0; i < dim; i++) {
+        pt->x[i] = 0;
+    }
+}
+
+// ### 4 -> param->n
+int
+Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model_b)(Num_param *prm, float x), float *mse)
+{
+    int         i, j;
+    int         dim;    // number of parameters
+    int         iter, max_iter, lap;
+    gs_pt       *gbuf, pt;
+    int         buf_len;
+    int         min_ix, max_ix;
+    float       min_err, max_err;
+    NumMatrix   *cov, *cosd;   // current covariance / coSD of amoeba
+
+    buf_len = 30;
+    dim = param->n;
+    max_iter = 100000;
+    cov = [NumMatrix unitMatrixOfDim:dim];
+    cov = [cov multByConst:0.001];     // initial cov
+    cosd = [cov matSqrt];
+
+    // alloc buffer
+    gbuf = (gs_pt *)malloc(sizeof(gs_pt) * buf_len);
+    init_gs_pt(&pt, dim);
+    
+    // fill buffer (initialize)
+    for (i = 0; i < buf_len; i++) {
+        // alloc x
+        init_gs_pt(gbuf + i, dim);
+        
+        // gen rand pt, eval error, and fill buffer
+        next_gs_pt(&pt, param, data, cosd, model_b);  // arg is current min pt, covar (func not done yet###)
+        copy_gs_pt(&pt, gbuf + i);
+    printf("%d %f\n", i, pt.err);
+    }
+
+    // find min/max pt ###
+    min_ix = max_ix = 0;
+    min_err = max_err = gbuf[0].err;
+    for (i = 1; i < buf_len; i++) {
+        printf("%d %f\n", i, gbuf[i].err);
+        if (min_err > gbuf[i].err) {
+            min_err = gbuf[i].err;
+            min_ix = i;
+        }
+        if (max_err < gbuf[i].err) {
+            max_err = gbuf[i].err;
+            max_ix = i;
+        }
+    }
+    printf("min_err = %f, at %d\n", min_err, min_ix);
+    printf("max_err = %f, at %d\n", max_err, max_ix);
+
+    // move center to current min (cov is I)
+    for (j = 0; j < dim; j++) {
+        param->data[j] = gbuf[min_ix].x[j];
+    }            
+
+    // === main amoeba ====
+    lap = 0;
+    for (iter = 0; iter < max_iter; iter++) {
+        next_gs_pt(&pt, param, data, cosd, model_b);
+        if (pt.err > max_err) {
+            continue;
+        }
+        for (j = 0; j < dim; j++) {
+            if (pt.x[j] < param->min[j] || pt.x[j] > param->max[j]) {
+                continue;
+            }
+        }
+        if (pt.err >= min_err) { // within range
+            // replace max
+            copy_gs_pt(&pt, gbuf + max_ix);
+            // find max
+            max_ix = 0;
+            max_err = gbuf[0].err;
+            for (i = 0; i < buf_len; i++) {
+                if (max_err < gbuf[i].err) {
+                    max_err = gbuf[i].err;
+                    max_ix = i;
+                }
+            }
+        } else {    // new min
+            copy_gs_pt(&pt, gbuf + max_ix);  // replace max with new min
+            min_ix = max_ix;    //
+            min_err = pt.err;
+            // find max
+            max_ix = 0;
+            max_err = gbuf[0].err;
+            for (i = 0; i < buf_len; i++) {
+               if (max_err < gbuf[i].err) {
+                   max_err = gbuf[i].err;
+                   max_ix = i;
+               }
+            }
+            // update current pt
+            // move center to current min
+            for (j = 0; j < dim; j++) {
+                param->data[j] = gbuf[min_ix].x[j];
+            }            
+            // update cosd
+            cov = calcCov(gbuf, buf_len);
+            cosd = [cov matSqrt];
+
+        //    printf("%d %d\n", iter,iter - lap); lap = iter;
+        //    printf("%d %f\n", iter, (max_err - min_err)/max_err);
+        //    printf("%d min = %f at %d, max = %f at %d\n", iter, min_err, min_ix, max_err, max_ix);
+        //    printf("%f %f\n", param->data[0], param->data[2]);
+            printf("%f %f\n", param->data[2], param->data[3]);        //    printf("%f %f\n", prm[2], prm[3]);
+        //    printf("%f %f %f %f\n", prm[0], prm[1], prm[2], prm[3]);
+        //    printf("%d %e %e %e\n", iter, min_err, max_err, (max_err - min_err)/max_err);
+            
+        }
+    }
+    if (gbuf) {
+        for (i = 0; i < buf_len; i++) {
+            if (gbuf[i].x) {
+                free(gbuf[i].x);
+            }
+        }
+        free(gbuf);
+    }
+    return iter;
 }
 
 #undef  GOLD
