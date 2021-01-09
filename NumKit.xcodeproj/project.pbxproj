@@ -7,6 +7,11 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		B4077F75259F2F7000021124 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4077F74259F2F7000021124 /* Metal.framework */; };
+		B4077F77259F31E500021124 /* kernel.metal in Sources */ = {isa = PBXBuildFile; fileRef = B4077F76259F31E500021124 /* kernel.metal */; };
+		B4077F78259F704400021124 /* kernel.metal in Sources */ = {isa = PBXBuildFile; fileRef = B4077F76259F31E500021124 /* kernel.metal */; };
+		B4077F7A25A077DD00021124 /* NumMetal.m in Sources */ = {isa = PBXBuildFile; fileRef = B4077F7925A077DD00021124 /* NumMetal.m */; };
+		B4077F7B25A07BB600021124 /* Metal.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4077F74259F2F7000021124 /* Metal.framework */; };
 		B40D65C71C3BD20B00D88027 /* Accelerate.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B4C8EB2A1C3A6CBE006CF8D4 /* Accelerate.framework */; };
 		B417591C2562BCF8009CB51F /* phasor.m in Sources */ = {isa = PBXBuildFile; fileRef = B417591B2562BCF8009CB51F /* phasor.m */; };
 		B41FD79B18D4238500C9194E /* NumLinear.m in Sources */ = {isa = PBXBuildFile; fileRef = B41FD79A18D4238500C9194E /* NumLinear.m */; };
@@ -71,6 +76,9 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
+		B4077F74259F2F7000021124 /* Metal.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Metal.framework; path = System/Library/Frameworks/Metal.framework; sourceTree = SDKROOT; };
+		B4077F76259F31E500021124 /* kernel.metal */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.metal; path = kernel.metal; sourceTree = "<group>"; };
+		B4077F7925A077DD00021124 /* NumMetal.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = NumMetal.m; sourceTree = "<group>"; };
 		B417591B2562BCF8009CB51F /* phasor.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; name = phasor.m; path = ../../MRCalc2/MRCalc2/phasor.m; sourceTree = "<group>"; };
 		B41FD79A18D4238500C9194E /* NumLinear.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = NumLinear.m; sourceTree = "<group>"; };
 		B41FD79C18D42AD400C9194E /* Accelerate.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Accelerate.framework; path = ../../../../System/Library/Frameworks/Accelerate.framework; sourceTree = "<group>"; };
@@ -112,6 +120,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B4077F75259F2F7000021124 /* Metal.framework in Frameworks */,
 				B4B706B21C3FA0AC0085D081 /* RecKit.framework in Frameworks */,
 				B40D65C71C3BD20B00D88027 /* Accelerate.framework in Frameworks */,
 				B4BA9AC918506D5900D1C3B6 /* NumKit.framework in Frameworks */,
@@ -123,6 +132,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B4077F7B25A07BB600021124 /* Metal.framework in Frameworks */,
 				B4B706B61C3FA6000085D081 /* RecKit.framework in Frameworks */,
 				B41FD79F18D42AF000C9194E /* Foundation.framework in Frameworks */,
 				B41FD79D18D42AD400C9194E /* Accelerate.framework in Frameworks */,
@@ -177,6 +187,7 @@
 		B43AB25516D626D100D85767 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				B4077F74259F2F7000021124 /* Metal.framework */,
 				B4B706B41C3FA5680085D081 /* libRecKit.a */,
 				B4B706B11C3FA0AC0085D081 /* RecKit.framework */,
 				B4C8EB2A1C3A6CBE006CF8D4 /* Accelerate.framework */,
@@ -197,10 +208,12 @@
 				B4CAEEFE1E73CE7900B194DB /* cblas.h */,
 				B4C7501F1F7FA72200ED4900 /* vDSP.h */,
 				B41FD79A18D4238500C9194E /* NumLinear.m */,
+				B4077F7925A077DD00021124 /* NumMetal.m */,
 				B43AB26916D629EA00D85767 /* NumMinimization.m */,
 				B4BA9AC718506A5700D1C3B6 /* NumStatistics.m */,
 				B4300C0F1D2D073E00E13BB7 /* NumSpin.m */,
 				B417591B2562BCF8009CB51F /* phasor.m */,
+				B4077F76259F31E500021124 /* kernel.metal */,
 				B43AB25B16D626D100D85767 /* Supporting Files */,
 			);
 			path = NumKit;
@@ -397,6 +410,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				B4077F78259F704400021124 /* kernel.metal in Sources */,
 				B43AB25A16D626D100D85767 /* libtest.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -408,7 +422,9 @@
 				B4814D19180922B70016214E /* NumMinimization.m in Sources */,
 				B4BA9AC818506A5700D1C3B6 /* NumStatistics.m in Sources */,
 				B4300C101D2D073E00E13BB7 /* NumSpin.m in Sources */,
+				B4077F7A25A077DD00021124 /* NumMetal.m in Sources */,
 				B417591C2562BCF8009CB51F /* phasor.m in Sources */,
+				B4077F77259F31E500021124 /* kernel.metal in Sources */,
 				B41FD79B18D4238500C9194E /* NumLinear.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -506,7 +522,7 @@
 				INSTALL_PATH = "@rpath";
 				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Resources/ /Users/oshio/Projects6/RecKit/RecKit/build $(HOME)/Projects6/NumKit/build";
 				LIBRARY_SEARCH_PATHS = /Users/oshio/Projects6/Reckit/Reckit/build;
-				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				OBJROOT = build;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "-ObjC";
@@ -540,7 +556,7 @@
 				INSTALL_PATH = "@rpath";
 				LD_RUNPATH_SEARCH_PATHS = "@loader_path/../Resources/ /Users/oshio/Projects6/RecKit/RecKit/build $(HOME)/Projects6/NumKit/build";
 				LIBRARY_SEARCH_PATHS = /Users/oshio/Projects6/Reckit/Reckit/build;
-				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				OBJROOT = build;
 				ONLY_ACTIVE_ARCH = NO;
 				OTHER_CFLAGS = "-ObjC";
@@ -560,7 +576,7 @@
 				INSTALL_PATH = "";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"$(SRCROOT)/build\"",
+					/Users/oshio/Projects6/NumKit/buid/NumKit.framework/Resources,
 				);
 				OBJROOT = build;
 				OTHER_CFLAGS = "";
@@ -581,7 +597,7 @@
 				INSTALL_PATH = "";
 				LIBRARY_SEARCH_PATHS = (
 					"$(inherited)",
-					"\"$(SRCROOT)/build\"",
+					/Users/oshio/Projects6/NumKit/buid/NumKit.framework/Resources,
 				);
 				OBJROOT = build;
 				OTHER_CFLAGS = "";
@@ -613,11 +629,11 @@
 				GCC_PREFIX_HEADER = "NumKit/NumKit-Prefix.pch";
 				INFOPLIST_FILE = "NumKit/NumKit-Info.plist";
 				LIBRARY_SEARCH_PATHS = $inherited;
-				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				ONLY_ACTIVE_ARCH = YES;
 				OTHER_CFLAGS = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = "";
+				SDKROOT = macosx;
 				WRAPPER_EXTENSION = framework;
 			};
 			name = Debug;
@@ -644,10 +660,10 @@
 				GCC_PREFIX_HEADER = "NumKit/NumKit-Prefix.pch";
 				INFOPLIST_FILE = "NumKit/NumKit-Info.plist";
 				LIBRARY_SEARCH_PATHS = $inherited;
-				MACOSX_DEPLOYMENT_TARGET = 10.6;
+				MACOSX_DEPLOYMENT_TARGET = 10.14;
 				OTHER_CFLAGS = "";
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = "";
+				SDKROOT = macosx;
 				WRAPPER_EXTENSION = framework;
 			};
 			name = Release;

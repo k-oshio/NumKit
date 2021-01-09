@@ -18,7 +18,7 @@
 #define SIGN(a, b)          ((b) >= 0.0 ? fabs(a) : -fabs(a))
 #define ITMAX               800     //800	// orig:100
 
-// todo: ... global search
+int     NumMinimization_dbg = 0;
 
 // private
 void
@@ -123,6 +123,53 @@ Num_least_sq(RecImage *data, RecImage *basis, float *mse) // pseudo inverse
     return param;
 }
 
+// non linear least squares (conjugate gradient) (keep old one)
+int
+Num_nonlin_least_sq(Num_data *data, Num_param *param, float (^model)(float x, float *p, float *dy), float *mse)
+{
+    int     np      = param->n;
+    int     nd      = data->n;
+    float   *x      = data->x;
+    float   *y      = data->y;
+    float   *dydp;
+    int     iter;
+
+    float   (^cost)(float *);
+    void    (^dcost)(float *, float *);
+
+    dydp = (float *)malloc(sizeof(float) * np);
+
+    cost = ^float(float *p) {
+        int     i;
+        float   val, cst = 0;
+        for (i = 0; i < nd; i++) {
+            val = model(x[i], p, NULL);
+            val -= y[i];
+            cst += val*val / nd;    // MSE
+        }
+        return cst;    
+    };
+    dcost = ^(float *p, float *gr) {
+        int     i, j;
+        float   val, e;
+
+        for (j = 0; j < np; j++) {
+            gr[j] = 0;
+        }
+        for (i = 0; i < nd; i++) {
+            val = model(x[i], p, dydp);
+            e = val - y[i];
+            for (j = 0; j < np; j++) {
+                gr[j] += 2 * e * dydp[j] / nd;
+            }
+        }
+    };
+
+    iter = Num_conjgr(param, cost, dcost, mse);
+    free(dydp);
+    return iter;
+}
+
 // non linear least squares (conjugate gradient)
 int
 Num_least_sq_old(Num_data *data, Num_param *param, float (*model)(float x, float *p, float *dy), float *mse)
@@ -208,7 +255,11 @@ Num_conjgr(Num_param *param, float (^cost)(float *p), void (^dcost)(float *p, fl
             fr = 1.0;
         }
 		Num_linmin(p, pmn, pmx, xi, np, &err, cost);
-		//printf("iter = %d, cost = %f, p0:%f p1:%f err:%f\n", iter, fp, p[0], p[1], err);
+
+if (NumMinimization_dbg) {
+//    printf("%d %f\n", iter, err);
+    printf("%f %f\n", p[2], p[3]);
+}
 		if (2.0 * fabs(err - fp) <= ftol * (fabs(err) + fabs(fp) + EPS)) {
             break;
 		}
@@ -899,7 +950,7 @@ void
 Num_dump_data(Num_data *d)
 {
     int     i;
-    printf("Num_data (xscale:%f, yscale:%f)\n", d->xscale, d->yscale);
+    printf("Num_data (n = %d, xscale:%f, yscale:%f)\n", d->n, d->xscale, d->yscale);
     for (i = 0; i < d->n; i++) {
         printf("%f %f\n", d->x[i], d->y[i]);
     }
@@ -941,9 +992,9 @@ typedef struct {
     float   *x;     // param
 } gs_pt;
 
-// pt is out
 void
-next_gs_pt(gs_pt *pt, Num_param *param, Num_data *data, NumMatrix *cosd, float (^model_b)(Num_param *prm, float x))
+//next_gs_pt(gs_pt *pt, Num_param *param, Num_data *data, NumMatrix *cosd, float (^model_b)(Num_param *prm, float x))
+next_gs_pt(gs_pt *pt, Num_param *param, NumMatrix *cosd, float (^model_b)(Num_param *prm))
 {
     NumMatrix   *dp;
     Num_param   *prm = Num_alloc_param(param->n);
@@ -954,15 +1005,17 @@ next_gs_pt(gs_pt *pt, Num_param *param, Num_data *data, NumMatrix *cosd, float (
     dp = [cosd matNrml];
     p = [dp data];
     for (i = 0; i < param->n; i++) {
-        prm->data[i] = param->data[i] + p[i];
+        val = param->data[i] + p[i];
+        if (prm->min[i] > val) {
+            prm->data[i] = prm->min[i];
+        } else
+        if (prm->max[i] < val) {
+            prm->data[i] = prm->max[i];
+        } else {
+            prm->data[i] = val;
+        }
     }
-    err = 0;
-    for (i = 0; i < data->n; i++) {
-        t = data->x[i];
-        val = model_b(prm, t);
-        err += (val - data->y[i]) * (val - data->y[i]);
-    }
-    pt->err = sqrt(err);
+    pt->err = model_b(prm);
     for (i = 0; i < param->n; i++) {
         pt->x[i] = prm->data[i];
     }
@@ -1032,9 +1085,9 @@ init_gs_pt(gs_pt *pt, int dim)
     }
 }
 
-// ### 4 -> param->n
+// expects scaled inputs
 int
-Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model_b)(Num_param *prm, float x), float *mse)
+Num_gauss_amoeba(Num_param *param, float (^model_b)(Num_param *prm), float *mse)
 {
     int         i, j;
     int         dim;    // number of parameters
@@ -1044,13 +1097,15 @@ Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model_b)(Num_param *p
     int         min_ix, max_ix;
     float       min_err, max_err;
     NumMatrix   *cov, *cosd;   // current covariance / coSD of amoeba
+    Num_param   *next_prm;
 
     buf_len = 30;
     dim = param->n;
-    max_iter = 100000;
+    max_iter = 100000; //100000;
     cov = [NumMatrix unitMatrixOfDim:dim];
     cov = [cov multByConst:0.001];     // initial cov
     cosd = [cov matSqrt];
+    next_prm = Num_alloc_param(dim);
 
     // alloc buffer
     gbuf = (gs_pt *)malloc(sizeof(gs_pt) * buf_len);
@@ -1062,16 +1117,17 @@ Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model_b)(Num_param *p
         init_gs_pt(gbuf + i, dim);
         
         // gen rand pt, eval error, and fill buffer
-        next_gs_pt(&pt, param, data, cosd, model_b);  // arg is current min pt, covar (func not done yet###)
+        next_gs_pt(&pt, param, cosd, model_b);
+        
         copy_gs_pt(&pt, gbuf + i);
-    printf("%d %f\n", i, pt.err);
+//    printf("%d %f\n", i, pt.err);
     }
 
     // find min/max pt ###
     min_ix = max_ix = 0;
     min_err = max_err = gbuf[0].err;
     for (i = 1; i < buf_len; i++) {
-        printf("%d %f\n", i, gbuf[i].err);
+//        printf("%d %f\n", i, gbuf[i].err);
         if (min_err > gbuf[i].err) {
             min_err = gbuf[i].err;
             min_ix = i;
@@ -1081,8 +1137,6 @@ Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model_b)(Num_param *p
             max_ix = i;
         }
     }
-    printf("min_err = %f, at %d\n", min_err, min_ix);
-    printf("max_err = %f, at %d\n", max_err, max_ix);
 
     // move center to current min (cov is I)
     for (j = 0; j < dim; j++) {
@@ -1092,12 +1146,13 @@ Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model_b)(Num_param *p
     // === main amoeba ====
     lap = 0;
     for (iter = 0; iter < max_iter; iter++) {
-        next_gs_pt(&pt, param, data, cosd, model_b);
+        if (gbuf[max_ix].err - gbuf[min_ix].err < 1.0e-8) break; // 1.0e-8
+        next_gs_pt(&pt, param, cosd, model_b);
         if (pt.err > max_err) {
             continue;
         }
         for (j = 0; j < dim; j++) {
-            if (pt.x[j] < param->min[j] || pt.x[j] > param->max[j]) {
+            if (pt.x[j] <= param->min[j] || pt.x[j] >= param->max[j]) {
                 continue;
             }
         }
@@ -1135,14 +1190,10 @@ Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model_b)(Num_param *p
             cov = calcCov(gbuf, buf_len);
             cosd = [cov matSqrt];
 
-        //    printf("%d %d\n", iter,iter - lap); lap = iter;
-        //    printf("%d %f\n", iter, (max_err - min_err)/max_err);
-        //    printf("%d min = %f at %d, max = %f at %d\n", iter, min_err, min_ix, max_err, max_ix);
-        //    printf("%f %f\n", param->data[0], param->data[2]);
-            printf("%f %f\n", param->data[2], param->data[3]);        //    printf("%f %f\n", prm[2], prm[3]);
-        //    printf("%f %f %f %f\n", prm[0], prm[1], prm[2], prm[3]);
-        //    printf("%d %e %e %e\n", iter, min_err, max_err, (max_err - min_err)/max_err);
-            
+            if (NumMinimization_dbg) {
+                printf("%f %f\n", param->data[2], param->data[3]);   // tc1, tc2
+            //    printf("%d %e %e %e\n", iter, min_err, max_err, max_err - min_err);
+            }
         }
     }
     if (gbuf) {
@@ -1153,8 +1204,222 @@ Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model_b)(Num_param *p
         }
         free(gbuf);
     }
+    *mse = pt.err;
+
     return iter;
 }
+
+// bi-exponential curve fitting
+// input is not altered (copy is scaled), param is output (in orig scale)
+int
+Num_biex_fit(Num_param *param, Num_data *data, float *mse)
+{
+    Num_data    *p_dat;     // log
+    Num_param   *p_prm;     // polynomial coeff
+    Num_data    *e_dat;     // linear
+    Num_param   *e_prm;     // bi-ex coeff
+    float       a, t;
+    int         i, j, niter;
+    int         order = 3;  // 5
+    float       r1, r2, c;
+    float       (^model_b)(Num_param *prm);
+    float       mn, mx;
+
+    mn = mx = data->y[0];
+    for (i = 0; i < data->n; i++) {
+        if (mn > data->y[i]) {
+            mn = data->y[i];
+        }
+        if (mx < data->y[i]) {
+            mx = data->y[i];
+        }
+    }
+    if (mx - mn < 1.0e-6) {
+    //    printf("range\n");
+        return 0;
+    }
+    p_dat = Num_copy_data(data);    // alloc and copy
+    Num_normalize_data(p_dat);
+    e_dat = Num_copy_data(p_dat);
+
+    // take log
+    for (i = 0; i < p_dat->n; i++) {
+        p_dat->y[i] = log(p_dat->y[i]);
+    }
+
+// ======== initial guess using polynomial expantion / least squares =======
+//  polynomial fitting
+    p_prm = Num_alloc_param(order);
+    Num_poly_fit(p_prm, p_dat);
+
+// expand -> continuous
+    for (i = 0; i < 100; i++) {
+        a = 0;
+        t = (float)i / 100;
+        for (j = 0; j < order; j++) {
+            a += p_prm->data[j] * pow(t, j);
+        }
+        a = exp(a);
+    }
+
+    e_prm = Num_alloc_param(4);
+
+// first estimate tc assuming frac = 0.5
+// expand
+//    a_to_tau(p_prm, e_prm);
+    c = 2.0 * p_prm->data[2]; 
+    if (c < 0) c = 0; // single
+    c = sqrt(c);
+
+    r1 = -p_prm->data[1] + c;
+    r2 = -p_prm->data[1] - c;
+    if (r2 <= 0) {
+        e_prm->data[3] = 100;
+    } else {
+        e_prm->data[3] = 1.0 / r2;
+    }
+    e_prm->data[2] = 1.0 / r1;
+    e_prm->data[0] = e_prm->data[1] = exp(p_prm->data[0])/2;
+
+// range
+    e_prm->min[0] = 0; e_prm->max[0] = 5.0;    // pd1
+    e_prm->min[1] = 0; e_prm->max[1] = 5.0;    // pd2
+    e_prm->min[2] = 0; e_prm->max[2] = 2.0;    // tc1
+    e_prm->min[3] = 0; e_prm->max[3] = 2.0;    // tc2
+
+// === adaptive gaussian search (general purpose) ===
+    model_b = ^float(Num_param *prm) {
+                    float   a1, a2, t1, t2, x, y, err;
+                    int     i;
+                    a1 = prm->data[0];
+                    a2 = prm->data[1];
+                    t1 = prm->data[2];
+                    t2 = prm->data[3];
+
+                    err = 0;
+                    for (i = 0; i < e_dat->n; i++) {
+                        if (a1 <= 0 || a2 <= 0 || t1 <= 0 || t2 <= 0) {
+                            return 100.0;    // error return
+                        } else {
+                            x = e_dat->x[i];
+                            y = a1 * exp(-x / t1) + a2 * exp(-x / t2);
+                        }
+                        err += (y - e_dat->y[i]) * (y - e_dat->y[i]);
+                    }
+                    return sqrt(err);
+                };
+    // === main func call ===
+    niter = Num_gauss_amoeba(e_prm, model_b, mse);
+
+    if (e_prm->data[2] > e_prm->data[3]) {
+        float   tmp;
+        tmp = e_prm->data[2];
+        e_prm->data[2] = e_prm->data[3];
+        e_prm->data[3] = tmp;
+        tmp = e_prm->data[0];
+        e_prm->data[0] = e_prm->data[1];
+        e_prm->data[1] = tmp;
+    }
+
+    param->data[0] = e_prm->data[0] * p_dat->yscale;
+    param->data[1] = e_prm->data[1] * p_dat->yscale;
+    param->data[2] = e_prm->data[2] * p_dat->xscale;
+    param->data[3] = e_prm->data[3] * p_dat->xscale;
+
+    Num_free_param(p_prm);
+    Num_free_param(e_prm);
+    Num_free_data(p_dat);
+    Num_free_data(e_dat);
+    
+    return niter;
+}
+
+// single exponential curve fitting
+int
+Num_exp_fit(Num_param *param, Num_data *data, float *mse)
+{
+    Num_data    *e_dat;     // linear
+    Num_param   *e_prm;     // bi-ex coeff
+    int         niter;
+    float       (^model_b)(Num_param *prm);
+
+    e_dat = Num_copy_data(data);    // alloc and copy
+    Num_normalize_data(e_dat);
+
+    e_prm = Num_alloc_param(2);
+    e_prm->data[0] = 1.0;
+    e_prm->data[1] = 0.5;
+
+// gaussian amoeba (general purpose) ### -> prm, x -> y
+    model_b = ^float(Num_param *prm) {
+                    float   pd, tc, x, y, err;
+                    int     i;
+                    pd  = prm->data[0];
+                    tc = prm->data[1];
+
+                    err = 0;
+                    for (i = 0; i < e_dat->n; i++) {
+                        if (pd <= 0 || tc <= 0) {
+                            return 100.0;    // error return
+                        } else {
+                            x = e_dat->x[i];
+                            y = pd * exp(-x / tc);
+                        }
+                        err += (y - e_dat->y[i]) * (y - e_dat->y[i]);
+                    }
+                    return sqrt(err);
+                };
+
+Num_dump_param(e_prm);
+    niter = Num_gauss_amoeba(e_prm, model_b, mse);
+Num_dump_param(e_prm);
+
+    param->data[0] = e_prm->data[0] * e_dat->yscale;
+    param->data[1] = e_prm->data[1] * e_dat->xscale;
+
+    Num_free_param(e_prm);
+    Num_free_data(e_dat);
+    
+    return niter;
+}
+
+
+// move to NumKit when done
+float
+Num_poly_fit(Num_param *param, Num_data *data)
+{
+    float       err;
+    RecImage    *X, *B, *A;
+    float       *px, *pb, *pa;
+    int         i, j, ndata, order;
+
+    ndata = data->n;
+    order = param->n;
+
+    A = [RecImage imageOfType:RECIMAGE_REAL xDim:order yDim:ndata];
+    B = [RecImage imageOfType:RECIMAGE_REAL xDim:1 yDim:ndata];
+    pa = [A data];
+    pb = [B data];
+    for (i = 0; i < ndata; i++) {
+        pb[i] = data->y[i];
+        pa[i*order] = 1.0;
+        for (j = 1; j < order; j++) {
+            pa[i*order + j] = pa[i*order + j - 1] * data->x[i];
+        }
+    }
+
+    // solve
+    X = Num_least_sq(B, A, &err); // pseudo inverse
+
+    // copy output to param
+    px = [X data];
+    for (i = 0; i < order; i++) {
+        param->data[i] = px[i];
+    }
+
+    return err;
+}
+
 
 #undef  GOLD
 #undef  GLIMIT

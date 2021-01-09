@@ -17,6 +17,7 @@
 
 #import <Foundation/Foundation.h>
 #import <Accelerate/Accelerate.h>
+#import <Metal/Metal.h>
 #import <RecKit/RecKit.h>
 #import <stdlib.h>
 #import <math.h>
@@ -134,7 +135,7 @@ typedef struct {
 	float	t2;
 } Num_rf;
 
-// ======= Object version ==== ## not implemented yet
+// ======= Object version ====
 @interface NumVector : NSObject
 {
 	int				type;
@@ -224,6 +225,33 @@ typedef struct {
 - (void)dump;
 
 @end
+
+@interface NumMetalDevice : NSObject
+{
+    id <MTLDevice>                  device;
+    id <MTLLibrary>                 library;
+    id <MTLComputePipelineState>    pipeline;
+    id <MTLCommandQueue>            queue;
+    id <MTLFunction>                function;
+    id <MTLCommandBuffer>           commandBuffer;
+    id <MTLComputeCommandEncoder>   encoder;
+}
+
+- (id) initWithLibrary:(NSString *)libpath;
+- (id<MTLCommandEncoder>) encoder;
+- (void)setFunction:(NSString *)functionName;
+- (id<MTLBuffer>) bufferWithLength:(NSUInteger)len options:(MTLResourceOptions)opt;
+- (void)setBuffer:(id<MTLBuffer>)buffer offset:(NSInteger)ofs atIndex:(NSInteger)ix;
+- (void)commit;
+- (void)waitUntilCompleted;
+- (NSUInteger)maxTotalThreadsPerThreadgroup;
+- (void)startEncoding;
+- (void)dispatchThreads:(MTLSize)gridSize threadsPerThreadgroup:(MTLSize)threadgroupSize;
+- (void)endEncoding;
++ (void)query;
+
+@end
+
 // ======= Object version ====
 
 
@@ -235,16 +263,23 @@ float	beta(float a, float b);				// beta function
 void        Num_error(char *msg);   // error exit
 
 // === Minimization / Least squares ===
-RecImage *Num_least_sq(RecImage *data, RecImage *basis, float *mse); // pseudo inverse
+RecImage *  Num_least_sq(RecImage *data, RecImage *basis, float *mse); // pseudo inverse
         // non-linear least squares (uses conj gr)
+int         Num_nonlin_least_sq(Num_data *data, Num_param *param, float (^model)(float x, float *p, float *dy), float *mse);
 int         Num_least_sq_old(Num_data *data, Num_param *param, float (*model)(float x, float *p, float *dy), float *mse);
 int         Num_conjgr(Num_param *param, float (^cost)(float *p), void (^dcost)(float *p, float *dy), float *minval);
         // conjugate direction
 int         Num_powell(Num_param *param, float(^cost)(float *p), float *minval);
         // Marquardt-Levenberg
 int         Num_marquardt(Num_data *d, Num_param *p, float (*model)(float x, float *pp, float *ddy), float *mse);
-        // Data structure
-int         Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model)(Num_param *prm, float x), float *mse);
+
+// gaussian amoeba        
+float       Num_poly_fit(Num_param *param, Num_data *data);
+int         Num_gauss_amoeba(Num_param *param, float (^model)(Num_param *prm), float *mse);
+int         Num_biex_fit(Num_param *param, Num_data *data, float *mse);
+int         Num_exp_fit(Num_param *param, Num_data *data, float *mse);
+
+// data structure
 Num_data  * Num_alloc_data(int ndata);
 Num_param * Num_alloc_param(int nparam);
 Num_range * Num_alloc_range(int nparam);

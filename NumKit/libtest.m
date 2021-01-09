@@ -8,11 +8,13 @@
 #import <Foundation/Foundation.h>
 #import "NumKit.h"
 
+#import <Metal/Metal.h>
+
 #import "../../RecKit/RecKit/Src/timer_macros.h"
 
 void    test0();    // machine eps
 void    test1();    // unit test
-void    test2();    // Num_least_sq
+void    test2();    // gaussian amoeba
 void    test3();    // stat
 void    test4();    // t-test, F-test
 void    test5();    // complex t-test
@@ -34,13 +36,15 @@ void    test20();   // ICA
 void	test21();	// NumMatrix (solveLinear, solveLinerarNN)
 void	test22();	// NumMatrix (low level func)
 void	test23();	// NNLS analysis of multi-exponential data
+void    test24();   // Metal (hello)
+void    test25();   // Metal dft
 
 int main(int argc, const char * argv[])
 {
     @autoreleasepool {
-    //	test0();    //Machine EPS = 1.4013e-45 (iter = 149)
+    //	test0();    // Machine EPS = 1.4013e-45 (iter = 149)
     //	test1();    // brak / brent
-    	test2();	// LS, marq & conj
+    	test2();	// gaussian amoeba
     //	test3();    // stat
     //	test4();    // t-test / F-test
     //	test5();    // complex t-test
@@ -62,6 +66,8 @@ int main(int argc, const char * argv[])
 	//	test21();	// NumMatrix
 	//	test22();	// NumMatrix (low level methods)
 	//	test23();	// NNLS analysis of multi-exponential data
+    //  test24();   // Metal (hello)
+    //    test25();   // Metal dft
    }
     return 0;
 }
@@ -123,10 +129,20 @@ test1()
     printf("min = %g at x = %g\n", fmin, xmin);
 }
 
-float   tm[10]   = {  30,   50,   80,  100,  200, 400, 1000};
-float   data[10] = {2078, 1917, 1843, 1790, 1472, 959,  450};
-int     ndata = 7;
-//int     nparam = 2;
+//float   tm[10]   = {  30,   50,   80,  100,  200, 400, 1000};
+//float   data[10] = {2078, 1917, 1843, 1790, 1472, 959,  450};
+//int     ndata = 7;
+float   tm[25]   = {40.0000, 80.0000, 120.0000, 160.0000, 200.0000, 240.0000,
+    280.0000, 320.0000, 360.0000, 400.0000, 440.0000, 480.0000, 520.0000, 560.0000,
+    600.0000, 640.0000, 680.0000, 720.0000, 760.0000, 800.0000, 840.0000, 880.0000,
+    920.0000, 960.0000, 1000.0000
+};
+float   data[25] = {2762.863770, 1561.862793, 929.988342, 527.620056, 352.072235,
+    228.285400, 158.456924, 67.142769, 36.379162, 79.106384, 36.135014, 33.937607,
+    99.615448, 56.888229, 61.527187, 46.389534, 140.877731, 20.264902, 80.327164,
+    20.753216, 37.844105, 65.677834, 35.158386, 7.812972, 60.062252
+};
+int     ndata = 25;
 
 // ###
 void
@@ -275,90 +291,144 @@ gauss_test()
     [E dump];
 }
 
-// ### make block
-float
-model(float x, float *p, float *dydp)
-{
-    float   pd1  = p[0];
-    float   pd2  = p[1];
-    float   tc1  = p[2];
-    float   tc2  = p[3];
-    float   e1, e2;
-    float   y = 0;
-
-    e1 = exp(-x / tc1);
-    e2 = exp(-x / tc2);
-    y = pd1 * e1 + pd2 * e2;
-    if (dydp) {
-        dydp[0] = e1;
-        dydp[1] = e2;
-        dydp[2] = pd1 * x * e1 / tc1 / tc1;
-        dydp[3] = pd2 * x * e2 / tc2 / tc2;
-    }
-    return y;
-}
-
-// move to NumKit when done
-float
-Num_poly_fit(Num_param *param, Num_data *data)
-{
-    float       err;
-    RecImage    *X, *B, *A;
-    float       *px, *pb, *pa;
-    int         i, j, ndata, order;
-
-    ndata = data->n;
-    order = param->n;
-
-    A = [RecImage imageOfType:RECIMAGE_REAL xDim:order yDim:ndata];
-    B = [RecImage imageOfType:RECIMAGE_REAL xDim:1 yDim:ndata];
-    pa = [A data];
-    pb = [B data];
-    for (i = 0; i < ndata; i++) {
-        pb[i] = data->y[i];
-        pa[i*order] = 1.0;
-        for (j = 1; j < order; j++) {
-            pa[i*order + j] = pa[i*order + j - 1] * data->x[i];
-        }
-    }
-
-    // solve
-    X = Num_least_sq(B, A, &err); // pseudo inverse
-
-    // copy output to param
-    px = [X data];
-    for (i = 0; i < order; i++) {
-        param->data[i] = px[i];
-    }
-
-    return err;
-}
 
 // 4 dim
-void
-global(float (^model)(Num_param *prm, float x))
+RecImage *
+global(float (^model)(Num_param *prm))
 {
     int         i0, i1, i2, i3;
     Num_param   *param;
-    int         dim = 64;
+    int         dim = 200;
     RecImage    *img;
-    float       *p;
+    float       *p, err;
+    float       mn = 0.01;
+    float       mx = 2.00;
 
     img = [RecImage imageOfType:RECIMAGE_REAL xDim:dim yDim:dim zDim:dim chDim:dim];
     p = [img data];
     param = Num_alloc_param(4);
     for (i0 = 0; i0 < dim; i0++) {
-        param->data[0] = (float)i0 * 1.0 / dim + 0.0;
+        printf("%d\n", i0);
+        param->data[0] = (float)i0 * (mx - mn) / dim + mn;
         for (i1 = 0; i1 < dim; i1++) {
-            param->data[1] = (float)i1 * 1.0 / dim + 0.0;
+            param->data[1] = (float)i1 * (mx - mn) / dim + mn;
             for (i2 = 0; i2 < dim; i2++) {
-                param->data[2] = (float)i2 * 1.0 / dim + 0.0;
+                param->data[2] = (float)i2 * (mx - mn) / dim + mn;
                 for (i3 = 0; i3 < dim; i3++) {
-                    param->data[3] = (float)i3 * 1.0 / dim + 0.0;
-                    model(param, 
+                    param->data[3] = (float)i3 * (mx - mn) / dim + mn;
+                    err = model(param);
                     p[(((i0 * dim) + i1) * dim + i2) * dim + i3] = err;
-    
+                }
+            }
+        }
+    }
+    printf("\n");
+    Num_free_param(param);
+
+    return img;
 }
+
+RecImage *
+metal_global(Num_data *data)
+{
+    int         i, j;
+    int         dim = 128;
+    int         imgSize;
+    RecImage    *img;
+    float       *p, *pres;
+    float       mn = 0.01;
+    float       mx = 3.0;
+    float       mnPd1 = mn;  // prm[0]
+    float       mxPd1 = mx;   // prm[1]
+    float       mnPd2 = mn;  // prm[2]
+    float       mxPd2 = mx;   // prm[3]
+    float       mnTc1 = mn;  // prm[4]
+    float       mxTc1 = 0.3;   // prm[5]
+    float       mnTc2 = mn;  // prm[6]
+    float       mxTc2 = 0.3;   // prm[7]
+
+// Metal
+    NumMetalDevice  *device;
+    id <MTLBuffer>  iBuf, fBuf, xBuf, yBuf, resultBuf;
+    float           *fPrm, *px, *py;
+    int             *iPrm;
+    int             mode;
+    
+//    [NumMetalDevice query];
+
+//    img = [RecImage imageOfType:RECIMAGE_REAL xDim:dim yDim:dim zDim:dim chDim:dim];
+    img = [RecImage imageOfType:RECIMAGE_REAL xDim:dim yDim:dim zDim:2];    // 2 projections
+    p = [img data];
+
+    imgSize = dim * dim;      // 2D grid
+//    bsize = dim / nb;
+    
+//    printf("imgSize = %d\n", imgSize);
+
+    device = [[NumMetalDevice alloc] initWithLibrary:nil];
+    [device setFunction:@"global"];
+
+// size
+    MTLSize gridSize = MTLSizeMake(dim, dim, 1);
+    MTLSize threadgroupSize = MTLSizeMake(dim, 1, 1);
+
+// alloc buffer
+    iBuf      = [device bufferWithLength:sizeof(int) * 4            options:MTLResourceStorageModeShared];
+    fBuf      = [device bufferWithLength:sizeof(float) * 8          options:MTLResourceStorageModeShared];
+    xBuf      = [device bufferWithLength:sizeof(float) * data->n    options:MTLResourceStorageModeShared];
+    yBuf      = [device bufferWithLength:sizeof(float) * data->n    options:MTLResourceStorageModeShared];
+    resultBuf = [device bufferWithLength:sizeof(float) * imgSize    options:MTLResourceStorageModeShared];
+
+// fill input data
+    fPrm = (float *)fBuf.contents;
+    fPrm[0] = mnPd1;
+    fPrm[1] = mxPd1;
+    fPrm[2] = mnPd2;
+    fPrm[3] = mxPd2;
+    fPrm[4] = mnTc1;
+    fPrm[5] = mxTc1;
+    fPrm[6] = mnTc2;
+    fPrm[7] = mxTc2;
+    iPrm = (int *)iBuf.contents;
+    iPrm[0] = (float)dim;
+    iPrm[1] = (float)data->n;
+    
+    px = (float *)xBuf.contents;
+    py = (float *)yBuf.contents;
+    for (i = 0; i < data->n; i++) {
+        px[i] = data->x[i];
+        py[i] = data->y[i];
+    }
+
+    // Metal
+    for (i = 0; i < 2; i++) {
+        mode  = i;
+        iPrm[2] = mode;
+//        iPrm[3] = batch;
+
+//printf("batch = %d, mode = %d, adr = %d\n", batch, mode, mode * imgSize + batch * bsize * dim);
+//continue;
+        [device startEncoding];
+        [device setBuffer:iBuf offset:0 atIndex:0];
+        [device setBuffer:fBuf offset:0 atIndex:1];
+        [device setBuffer:xBuf offset:0 atIndex:2];
+        [device setBuffer:yBuf offset:0 atIndex:3];
+        [device setBuffer:resultBuf offset:0 atIndex:4];
+        [device dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
+        [device endEncoding];
+        [device commit];
+        [device waitUntilCompleted];
+        // copy result
+        pres = (float *)resultBuf.contents;
+        for (j = 0; j < imgSize; j++) {
+            p[mode * imgSize + j] = pres[j]; // 2d result
+        }
+    }
+
+    return img;
+}
+
+extern int NumMinimization_dbg;
 
 void
 test2()
@@ -372,11 +442,11 @@ test2()
     int         i, j, niter;
     int         order = 3;  // 5
     float       mse, mse0;
-    float       (^model_b)(Num_param *prm, float x);
-    float       (^biex_b)(Num_param *prm, Num_data *dat);
+    float       (^model_b)(Num_param *prm);
 
+//ndata = 8; // ###
     p_dat = Num_alloc_data(ndata);
-    if (1) { // generate
+    if (0) { // generate
         float       pd1 = 3000;
         float       pd2 = 2000;
         float       tc1 = 100;
@@ -390,8 +460,49 @@ test2()
         for (i = 0; i < ndata; i++) {
             p_dat->x[i] = tm[i];
             p_dat->y[i] = data[i];
+            
+            printf("%f %f\n", tm[i], data[i]);
         }
     }
+
+//    time: 0.275097 (sec) Num_biex_fit initial
+//    time: 0.007378 (sec) Num_biex_fit error dif > 10e-6
+//    time: 0.005785 (sec) Num_biex_fit error dif > 10e-4
+
+// test Num_biex
+if (0) {
+//NumMinimization_dbg = 1;
+    printf("Num_biex_fit()\n");
+    p_prm = Num_alloc_param(4);
+TIMER_ST
+    niter = Num_biex_fit(p_prm, p_dat, &mse);
+TIMER_END("Num_biex_fit");
+    printf("niter = %d, mse = %f\n", niter, mse);
+    Num_dump_param(p_prm);
+    Num_free_param(p_prm);
+    exit(0);
+}
+if (0) {
+    int i;
+    float   a, t;
+
+    printf("Num_exp_fit()\n");
+    p_prm = Num_alloc_param(2);
+    niter = Num_exp_fit(p_prm, p_dat, &mse);
+    printf("niter = %d, mse = %f\n", niter, mse);
+    
+    for (i = 0; i < 100; i++) {
+        t = (float)i * 10;
+        a = p_prm->data[0] * exp(-t / p_prm->data[1]);
+        printf("%f %f\n", t, a);
+    }
+    Num_dump_param(p_prm);
+    Num_dump_data(p_dat);
+    Num_free_param(p_prm);
+    exit(0);
+}
+
+
 // scale input
     Num_normalize_data(p_dat);
 // copy to e
@@ -401,8 +512,6 @@ test2()
     for (i = 0; i < p_dat->n; i++) {
         p_dat->y[i] = log(p_dat->y[i]);
     }
-//    Num_dump_data(p_dat);
-
 
 // ======== initial guess using polynomial expantion / least squares =======
 //  polynomial fitting
@@ -419,58 +528,111 @@ test2()
             a += p_prm->data[j] * pow(t, j);
         }
         a = exp(a);
-//printf("%f %f\n", t, a);
     }
 
     e_prm = Num_alloc_param(4);
 // first estimate tc assuming frac = 0.5
     a_to_tau(p_prm, e_prm);
+    for (i = 0; i < 4; i++) {
+        e_prm->min[i] = 0.001;
+        e_prm->max[i] = 10.0;
+    }
 
 Num_dump_param(e_prm);
 
 // ======== non-linear minimization ==========
-    // global search
-    if (1) {
-        float       (^biex_b)(Num_param *prm, Num_data *dat);
-        global(e_prm, e_dat);
-        exit(0);
-    }
-
     // chk current fit and MSE (#not correct yet)
     mse = biex_eval(e_prm, e_dat);
     printf("initial MSE = %f\n", mse);
- 
-    // ### not working yet (niter = 0)
-    if (0) {        // try conj gradient for comparison (using same initial guess)
-        float       minval;
 
-        niter = Num_least_sq_old(p_dat, e_prm, model, &minval);
-        for (i = 0; i < 4; i++) {
-            printf("%f ", e_prm->data[i]);
-        }
-        printf("\n");
-        printf("niter = %d, mse = %f\n", niter, minval);
-
-        exit(0);
-    }
-
-// gaussian amoeba (general purpose) ### -> prm, x -> y
-    model_b = ^float(Num_param *prm, float x) {
-                    float   a1, a2, t1, t2;
+    model_b = ^float(Num_param *prm) {
+                    float   a1, a2, t1, t2, x, y, err;
+                    int     i;
                     a1 = prm->data[0];
                     a2 = prm->data[1];
                     t1 = prm->data[2];
                     t2 = prm->data[3];
-                    
-                    if (a1 <= 0 || a2 <= 0 || t1 <= 0 || t2 <= 0) {
-                        return 0;
-                    } else {
-                        return a1 * exp(-x / t1) + a2 * exp(-x / t2);
-                    }
-                };
-    niter = Num_gauss_amoeba(e_prm, e_dat, model_b, &mse);
 
-// int Num_gauss_amoeba(Num_param *param, Num_data *data, float (^model(Num_param *prm)), float *mse)
+                    err = 0;
+                    for (i = 0; i < e_dat->n; i++) {
+                        if (a1 <= 0 || a2 <= 0 || t1 <= 0 || t2 <= 0) {
+                            return 100.0;    // error return
+                        } else {
+                            x = e_dat->x[i];
+                            y = a1 * exp(-x / t1) + a2 * exp(-x / t2);
+                        }
+                        err += (y - e_dat->y[i]) * (y - e_dat->y[i]);
+                    }
+                    return sqrt(err);
+                };
+
+
+     // ===== global search
+     if (1) {
+         RecImage *img, *prj;
+     //    img = global(model_b);
+         img = metal_global(e_dat);
+[img saveAsKOImage:@"IMG_biex0"];   // pd1, pd2, tc1, tc2
+exit(0);
+         prj = [img mnpForLoop:[img xLoop]]; // pd1, pd2, tc1
+         prj = [prj mnpForLoop:[prj yLoop]]; // pd1, tc1
+         [prj checkNaN];
+         [prj saveAsKOImage:@"IMG_biex1"];
+         prj = [img mnpForLoop:[img topLoop]];  // pd2, tc1, tc2
+         prj = [prj mnpForLoop:[prj topLoop]];  // tc1, tc2
+         [prj checkNaN];
+         [prj saveAsKOImage:@"IMG_biex2"];
+         exit(0);
+     }
+
+     // ====== try different initial value
+     NumMinimization_dbg = 1;
+     if (0) {
+         e_prm->data[0] = 0.5515;
+         e_prm->data[1] = 0.5515;
+         e_prm->data[2] = 0.143;
+         e_prm->data[3] = 0.3514;
+     }
+ 
+    // ===== conj gradient
+    if (0) {        // try conj gradient for comparison (using same initial guess)
+        float       (^model_c)(float x, float *p, float *dy);
+        
+        printf("conj gradient\n");
+
+        model_c = ^float(float x, float *p, float *dydp) {
+                    float   pd1  = p[0];
+                    float   pd2  = p[1];
+                    float   tc1  = p[2];
+                    float   tc2  = p[3];
+                    float   e1, e2;
+                    float   y = 0;
+
+                    e1 = exp(-x / tc1);
+                    e2 = exp(-x / tc2);
+                    y = pd1 * e1 + pd2 * e2;
+                    if (dydp) {
+                        dydp[0] = e1;
+                        dydp[1] = e2;
+                        dydp[2] = pd1 * x * e1 / tc1 / tc1;
+                        dydp[3] = pd2 * x * e2 / tc2 / tc2;
+                    }
+                    return y;
+                };
+
+        niter = Num_nonlin_least_sq(e_dat, e_prm, model_c, &mse);
+        for (i = 0; i < 4; i++) {
+            printf("%f ", e_prm->data[i]);
+        }
+        printf("\n");
+        printf("niter = %d, mse = %f\n", niter, mse);
+
+        exit(0);
+    }
+
+// ====== gaussian amoeba (general purpose)
+
+    niter = Num_gauss_amoeba(e_prm, model_b, &mse);
 
     Num_dump_param(e_prm);
 
@@ -1770,3 +1932,221 @@ test23()
 	X = [A solveLinearNN:B];
 	[X dump];
 }
+
+// Metal
+void
+test24()
+{
+    int             i, len = 10;
+    NumMetalDevice  *device;
+    id <MTLBuffer>  bufferA, bufferB, bufferResult;
+
+
+// device (specify lib path if not found)
+    device = [[NumMetalDevice alloc] initWithLibrary:nil];
+    [device setFunction:@"add_arrays"];
+
+// alloc buffer
+    bufferA = [device bufferWithLength:len options:MTLResourceStorageModeShared];
+    bufferB = [device bufferWithLength:len options:MTLResourceStorageModeShared];
+    bufferResult = [device bufferWithLength:len options:MTLResourceStorageModeShared];
+
+// encode buffer
+    [device setBuffer:bufferA offset:0 atIndex:0];
+    [device setBuffer:bufferB offset:0 atIndex:1];
+    [device setBuffer:bufferResult offset:0 atIndex:2];
+
+    // size
+    MTLSize gridSize = MTLSizeMake(len, 1, 1);
+    int gSize = (int)[device maxTotalThreadsPerThreadgroup];
+    if (gSize > len) {
+        gSize = len;
+    }
+    MTLSize threadgroupSize = MTLSizeMake(gSize, 1, 1);
+    [device dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
+    [device endEncoding];
+
+// fill input data
+    for (i = 0; i < len; i++) {
+        float   *pa = bufferA.contents;
+        float   *pb = bufferB.contents;
+        pa[i] = i;
+        pb[i] = i + 1;
+    }
+
+// execute
+    [device commit];
+    [device waitUntilCompleted];
+
+// verify
+    float   *pa = bufferA.contents;
+    float   *pb = bufferB.contents;
+    float   *pr = bufferResult.contents;
+    for (i = 0; i < len; i++) {
+        printf("%f %f %f\n", pa[i], pb[i], pr[i]);
+    }
+}
+
+// minimal design -> refine for lib version
+// 1d dft per thread, no inter-thread communication
+void
+dft_metal(float *re, float *im, int dim)
+{
+    NumMetalDevice  *device;
+    id <MTLBuffer>  reBuf, imBuf, csBuf, snBuf, intBuf;   // input (read only)
+    id <MTLBuffer>  resRe, resIm;   // output (read-write)
+    float           *rePtr, *imPtr, *csPtr, *snPtr, *resR, *resI;
+    int             *iPtr;
+    int             direction = 1;  // forward (not used)
+    int             i, imgSize;
+
+    imgSize = dim * dim;      // 2D grid
+
+    device = [[NumMetalDevice alloc] initWithLibrary:nil];
+    [device setFunction:@"dft"];
+
+// size
+    MTLSize gridSize = MTLSizeMake(dim, dim, 1);
+    MTLSize threadgroupSize = MTLSizeMake(256, 1, 1);
+
+// alloc buffer
+    intBuf    = [device bufferWithLength:sizeof(int) * 2          options:MTLResourceStorageModeShared];
+    reBuf   = [device bufferWithLength:sizeof(float) * imgSize  options:MTLResourceStorageModeShared];
+    imBuf   = [device bufferWithLength:sizeof(float) * imgSize  options:MTLResourceStorageModeShared];
+    csBuf   = [device bufferWithLength:sizeof(float) * dim      options:MTLResourceStorageModeShared];
+    snBuf   = [device bufferWithLength:sizeof(float) * dim      options:MTLResourceStorageModeShared];
+    resRe   = [device bufferWithLength:sizeof(float) * imgSize  options:MTLResourceStorageModeShared];
+    resIm   = [device bufferWithLength:sizeof(float) * imgSize  options:MTLResourceStorageModeShared];
+
+// set pointers to buffer
+    rePtr = (float *)reBuf.contents;
+    imPtr = (float *)imBuf.contents;
+    iPtr = (int *)intBuf.contents;
+
+    iPtr[0] = (float)dim;
+    iPtr[1] = (float)direction;     // direction
+
+// set sin tab
+    csPtr = (float *)csBuf.contents;
+    snPtr = (float *)snBuf.contents;
+    for (i = 0; i < dim; i++) {
+        csPtr[i] = cos(i * 2 * M_PI / dim);
+        snPtr[i] = sin(i * 2 * M_PI / dim);
+    }
+    iPtr[0] = (float)dim;
+    iPtr[1] = (float)direction;     // direction
+
+    // Metal
+    for (i = 0; i < 1; i++) {   // 1 image...
+        // copy input
+        for (i = 0; i < imgSize; i++) {
+            rePtr[i] = re[i];
+            imPtr[i] = im[i];
+        }
+
+        // Metal call
+        [device startEncoding];
+        [device setBuffer:intBuf offset:0 atIndex:0];
+        [device setBuffer:reBuf offset:0 atIndex:1];
+        [device setBuffer:imBuf offset:0 atIndex:2];
+        [device setBuffer:csBuf offset:0 atIndex:3];
+        [device setBuffer:snBuf offset:0 atIndex:4];
+        [device setBuffer:resRe offset:0 atIndex:5];
+        [device setBuffer:resIm offset:0 atIndex:6];
+        [device dispatchThreads:gridSize threadsPerThreadgroup:threadgroupSize];
+        [device endEncoding];
+        [device commit];
+        [device waitUntilCompleted];
+
+        // copy result
+        resR  = (float *)resRe.contents;
+        resI  = (float *)resIm.contents;
+        for (i = 0; i < imgSize; i++) {
+            re[i] = resR[i]; // 2d result
+            im[i] = resI[i]; // 2d result
+        }
+    }
+}
+
+void
+dft_ref(float *re, float *im, int n)
+{
+    int     i, j, ij, k, ik;
+    float   *tmpr, *tmpi;   // work
+    float   *cs, *sn;       // sin tab
+
+    // make sin tab
+    cs = (float *)malloc(sizeof(float) * n);
+    sn = (float *)malloc(sizeof(float) * n);
+    for (i = 0; i < n; i++) {
+        cs[i] = cos(i * 2 * M_PI / n);
+        sn[i] = sin(i * 2 * M_PI / n);
+    }
+
+    // work area
+    tmpr = (float *)malloc(sizeof(float) * n);
+    tmpi = (float *)malloc(sizeof(float) * n);
+
+    for (k = 0; k < n; k++) {
+        for (i = 0; i < n; i++) {
+            tmpr[i] = re[k * n + i];
+            tmpi[i] = im[k * n + i];
+        }
+        for (i = 0; i < n; i++) {
+            ik = k * n + i;
+            re[ik] = im[ik] = 0;
+            for (j = 0; j < n; j++) {
+                ij = i * j % n;
+                re[ik] +=  tmpr[j] * cs[ij] + tmpi[j] * sn[ij];
+                im[ik] += -tmpr[j] * sn[ij] + tmpi[j] * cs[ij];
+            }
+        }
+    }
+    free(tmpr); free(tmpi);
+    free(cs); free(sn);
+}
+
+void
+test25()
+{
+    RecImage    *img, *img2;
+    float       *re, *im;
+    int         i, j, dim = 128;
+    float       x, y, r, val;
+
+    img = [RecImage imageOfType:RECIMAGE_COMPLEX xDim:dim yDim:dim];
+    re = [img real];
+    im = [img imag];
+    for (i = 0; i < dim; i++) {
+        y = i - dim/2 + 1;
+        for (j = 0; j < dim; j++) {
+            x = j - dim/2 + 1;
+            if (x*x + y*y < dim*dim/16) {
+                re[i * dim + j] = 1.0;
+            } else {
+                re[i * dim + j] = 0.0;
+            }
+        }
+    }
+    [img saveAsKOImage:@"IMG_im"];
+
+    img2 = [img copy];
+    re = [img2 real];
+    im = [img2 imag];
+
+TIMER_ST
+
+    dft_ref(re, im, dim);   // 1d ft for x loop
+//    dft_metal(re, im, dim);   // 1d ft for x loop
+    [img2 saveAsKOImage:@"IMG_fr_dft"];
+TIMER_END("Num_dft");
+
+    [img shift1d:[img xLoop]];
+    [img fft1d:[img xLoop] direction:REC_FORWARD];
+    [img shift1d:[img xLoop]];
+    [img saveAsKOImage:@"IMG_fr_fft"];
+    [img subImage:img2];
+    [img saveAsKOImage:@"IMG_dif"];
+TIMER_END("Num_fft");
+}
+
