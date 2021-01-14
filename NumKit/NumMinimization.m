@@ -1006,16 +1006,16 @@ next_gs_pt(gs_pt *pt, Num_param *param, NumMatrix *cosd, float (^model_b)(Num_pa
     p = [dp data];
     for (i = 0; i < param->n; i++) {
         val = param->data[i] + p[i];
-        if (prm->min[i] > val) {
-            prm->data[i] = prm->min[i];
+        if (val < param->min[i]) {
+            prm->data[i] = param->min[i];
         } else
-        if (prm->max[i] < val) {
-            prm->data[i] = prm->max[i];
+        if (val > param->max[i]) {
+            prm->data[i] = param->max[i];
         } else {
             prm->data[i] = val;
         }
     }
-    pt->err = model_b(prm);
+    pt->err = model_b(param);
     for (i = 0; i < param->n; i++) {
         pt->x[i] = prm->data[i];
     }
@@ -1099,11 +1099,11 @@ Num_gauss_amoeba(Num_param *param, float (^model_b)(Num_param *prm), float *mse)
     NumMatrix   *cov, *cosd;   // current covariance / coSD of amoeba
     Num_param   *next_prm;
 
-    buf_len = 30;
+    buf_len = 30;   // 30
     dim = param->n;
     max_iter = 100000; //100000;
     cov = [NumMatrix unitMatrixOfDim:dim];
-    cov = [cov multByConst:0.001];     // initial cov
+    cov = [cov multByConst:0.01];     // initial cov
     cosd = [cov matSqrt];
     next_prm = Num_alloc_param(dim);
 
@@ -1121,6 +1121,7 @@ Num_gauss_amoeba(Num_param *param, float (^model_b)(Num_param *prm), float *mse)
         
         copy_gs_pt(&pt, gbuf + i);
 //    printf("%d %f\n", i, pt.err);
+//        printf("%f %f\n", pt.x[0], pt.x[1]);
     }
 
     // find min/max pt ###
@@ -1130,7 +1131,7 @@ Num_gauss_amoeba(Num_param *param, float (^model_b)(Num_param *prm), float *mse)
 //        printf("%d %f\n", i, gbuf[i].err);
         if (min_err > gbuf[i].err) {
             min_err = gbuf[i].err;
-            min_ix = i;
+            min_ix = i; // not used ###
         }
         if (max_err < gbuf[i].err) {
             max_err = gbuf[i].err;
@@ -1146,16 +1147,20 @@ Num_gauss_amoeba(Num_param *param, float (^model_b)(Num_param *prm), float *mse)
     // === main amoeba ====
     lap = 0;
     for (iter = 0; iter < max_iter; iter++) {
-        if (gbuf[max_ix].err - gbuf[min_ix].err < 1.0e-8) break; // 1.0e-8
+        BOOL    range_err;
+        if (gbuf[max_ix].err - gbuf[min_ix].err < 1.0e-8) break; // 1.0e-8 (## max_err - min_err should be ok)
         next_gs_pt(&pt, param, cosd, model_b);
         if (pt.err > max_err) {
             continue;
         }
+        range_err = NO;
         for (j = 0; j < dim; j++) {
             if (pt.x[j] <= param->min[j] || pt.x[j] >= param->max[j]) {
-                continue;
+                range_err = YES;
             }
         }
+        if (range_err) continue;
+
         if (pt.err >= min_err) { // within range
             // replace max
             copy_gs_pt(&pt, gbuf + max_ix);
@@ -1191,7 +1196,9 @@ Num_gauss_amoeba(Num_param *param, float (^model_b)(Num_param *prm), float *mse)
             cosd = [cov matSqrt];
 
             if (NumMinimization_dbg) {
-                printf("%f %f\n", param->data[2], param->data[3]);   // tc1, tc2
+            //    printf("%f %f\n", param->data[2], param->data[3]);   // tc1, tc2
+            //    printf("%f %f\n", param->data[2], param->data[0]);   // pd1, tc1
+                printf("%f %f\n", param->data[0], param->data[1]);   // pd1, pd2
             //    printf("%d %e %e %e\n", iter, min_err, max_err, max_err - min_err);
             }
         }
@@ -1282,10 +1289,10 @@ Num_biex_fit(Num_param *param, Num_data *data, float *mse)
     e_prm->data[0] = e_prm->data[1] = exp(p_prm->data[0])/2;
 
 // range
-    e_prm->min[0] = 0; e_prm->max[0] = 5.0;    // pd1
-    e_prm->min[1] = 0; e_prm->max[1] = 5.0;    // pd2
-    e_prm->min[2] = 0; e_prm->max[2] = 2.0;    // tc1
-    e_prm->min[3] = 0; e_prm->max[3] = 2.0;    // tc2
+    e_prm->min[0] = 0.001; e_prm->max[0] = 10.0;    // pd1
+    e_prm->min[1] = 0.001; e_prm->max[1] = 10.0;    // pd2
+    e_prm->min[2] = 0.001; e_prm->max[2] = 10.0;    // tc1
+    e_prm->min[3] = 0.001; e_prm->max[3] = 10.0;    // tc2
 
 // === adaptive gaussian search (general purpose) ===
     model_b = ^float(Num_param *prm) {
@@ -1348,7 +1355,9 @@ Num_exp_fit(Num_param *param, Num_data *data, float *mse)
 
     e_prm = Num_alloc_param(2);
     e_prm->data[0] = 1.0;
-    e_prm->data[1] = 0.5;
+    e_prm->data[1] = 1.0;
+    e_prm->min[0] = 0.001; e_prm->max[0] = 10.0;
+    e_prm->min[1] = 0.001; e_prm->max[1] = 10.0;
 
 // gaussian amoeba (general purpose) ### -> prm, x -> y
     model_b = ^float(Num_param *prm) {
@@ -1367,11 +1376,12 @@ Num_exp_fit(Num_param *param, Num_data *data, float *mse)
                         }
                         err += (y - e_dat->y[i]) * (y - e_dat->y[i]);
                     }
-                    return sqrt(err);
+                    return sqrt(err/e_dat->n);
                 };
 
-Num_dump_param(e_prm);
+//Num_dump_param(e_prm);
     niter = Num_gauss_amoeba(e_prm, model_b, mse);
+printf("single\n");
 Num_dump_param(e_prm);
 
     param->data[0] = e_prm->data[0] * e_dat->yscale;

@@ -32,8 +32,6 @@ kernel void global (device const int    *iparam,
     float   mnTc2, mxTc2;         // fparam (0, 1)
     int     dim, len;       // iparam (0, 1)
     int     mode;           // iparam (2)  
-    int     batch;          // iparam (3)
-    int     bsize;
     int     i, i0, i1, i2, i3;
     float   mse, val, min_mse;
 
@@ -48,30 +46,33 @@ kernel void global (device const int    *iparam,
 
     dim = iparam[0];
     len = iparam[1];
-    mode  = (int)iparam[2];
-//    batch = (int)iparam[3];
-//    bsize = dim / batch;
-    // ### dividing load into batches doesn't reduce load per node
+    mode = iparam[2];
 
-    i0 = index.x;
-    i1 = index.y;
+    i0 = index.y;
+    i1 = index.x;
 
     min_mse = 1e10;
     for (i2 = 0; i2 < dim; i2++) {
         for (i3 = 0; i3 < dim; i3++) {
             switch (mode) {
             default :
-            case 0 :
+            case 0 :    // x: pd2, y: pd1
                 pd1 = (float)i0 / dim * (mxPd1 - mnPd1) + mnPd1;
                 pd2 = (float)i1 / dim * (mxPd2 - mnPd2) + mnPd2;
                 tc1 = (float)i2 / dim * (mxTc1 - mnTc1) + mnTc1;
                 tc2 = (float)i3 / dim * (mxTc2 - mnTc2) + mnTc2;
                 break;
-            case 1 :
-                pd1 = (float)i0 / dim * (mxPd1 - mnPd1) + mnPd1;
-                tc1 = (float)i1 / dim * (mxTc1 - mnTc1) + mnTc1;
-                pd2 = (float)i2 / dim * (mxPd2 - mnPd2) + mnPd2;
-                tc2 = (float)i3 / dim * (mxTc2 - mnTc2) + mnTc2;
+            case 1 :    // x: tc2, y: tc1
+                pd1 = (float)i2 / dim * (mxPd1 - mnPd1) + mnPd1;
+                pd2 = (float)i3 / dim * (mxPd2 - mnPd2) + mnPd2;
+                tc1 = (float)i0 / dim * (mxTc1 - mnTc1) + mnTc1;
+                tc2 = (float)i1 / dim * (mxTc2 - mnTc2) + mnTc2;
+                break;
+            case 2 :    // x : tc2, y: pd2
+                pd1 = (float)i2 / dim * (mxPd1 - mnPd1) + mnPd1;
+                pd2 = (float)i0 / dim * (mxPd2 - mnPd2) + mnPd2;
+                tc1 = (float)i3 / dim * (mxTc1 - mnTc1) + mnTc1;
+                tc2 = (float)i1 / dim * (mxTc2 - mnTc2) + mnTc2;
                 break;
             }
 
@@ -82,13 +83,24 @@ kernel void global (device const int    *iparam,
                 mse += (val - y[i]) * (val - y[i]);
             }
             mse = sqrt(mse/len);
-        }
-        if (min_mse > mse) {
-            min_mse = mse;
+            if (min_mse > mse) {
+                min_mse = mse;
+            }
         }
     }
 
     result[index.y * dim + index.x] = min_mse;
+//    switch (mode) {
+//    case 0:
+//        result[index.y * dim + index.x] = index.y;
+//        break;
+//    case 1:
+//        result[index.y * dim + index.x] = index.x;
+//        break;
+//    case 2:
+//        result[index.y * dim + index.x] = index.y + index.x;
+//        break;
+//    }
 }
 
 kernel void dft (device const int       *iparam,

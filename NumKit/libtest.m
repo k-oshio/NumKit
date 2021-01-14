@@ -132,17 +132,22 @@ test1()
 //float   tm[10]   = {  30,   50,   80,  100,  200, 400, 1000};
 //float   data[10] = {2078, 1917, 1843, 1790, 1472, 959,  450};
 //int     ndata = 7;
-float   tm[25]   = {40.0000, 80.0000, 120.0000, 160.0000, 200.0000, 240.0000,
-    280.0000, 320.0000, 360.0000, 400.0000, 440.0000, 480.0000, 520.0000, 560.0000,
-    600.0000, 640.0000, 680.0000, 720.0000, 760.0000, 800.0000, 840.0000, 880.0000,
-    920.0000, 960.0000, 1000.0000
-};
-float   data[25] = {2762.863770, 1561.862793, 929.988342, 527.620056, 352.072235,
-    228.285400, 158.456924, 67.142769, 36.379162, 79.106384, 36.135014, 33.937607,
-    99.615448, 56.888229, 61.527187, 46.389534, 140.877731, 20.264902, 80.327164,
-    20.753216, 37.844105, 65.677834, 35.158386, 7.812972, 60.062252
-};
-int     ndata = 25;
+
+//float   tm[25]   = {40.0000, 80.0000, 120.0000, 160.0000, 200.0000, 240.0000,
+//    280.0000, 320.0000, 360.0000, 400.0000, 440.0000, 480.0000, 520.0000, 560.0000,
+//    600.0000, 640.0000, 680.0000, 720.0000, 760.0000, 800.0000, 840.0000, 880.0000,
+//    920.0000, 960.0000, 1000.0000
+//};
+//float   data[25] = {2762.863770, 1561.862793, 929.988342, 527.620056, 352.072235,
+//    228.285400, 158.456924, 67.142769, 36.379162, 79.106384, 36.135014, 33.937607,
+//    99.615448, 56.888229, 61.527187, 46.389534, 140.877731, 20.264902, 80.327164,
+//    20.753216, 37.844105, 65.677834, 35.158386, 7.812972, 60.062252
+//};
+//int     ndata = 25; // 25
+
+float   tm[10]   = {  0,   20,   30,  50,  80, 100, 200, 400, 1000};
+float   data[10] = {1.0, 0.992, 0.984, 0.977, 0.962, 0.942, 0.929, 0.874, 0.794, 0.663};
+int     ndata = 9;
 
 // ###
 void
@@ -328,6 +333,37 @@ global(float (^model)(Num_param *prm))
     return img;
 }
 
+// 2 dim
+RecImage *
+global2(Num_data *dt)
+{
+    int         i0, i1, j;
+    int         dim = 200;
+    RecImage    *img;
+    float       *p, err;
+    float       pd, tc, val;
+    float       mn = 0.01;
+    float       mx = 10.00;
+
+    img = [RecImage imageOfType:RECIMAGE_REAL xDim:dim yDim:dim];
+    p = [img data];
+
+    for (i0 = 0; i0 < dim; i0++) {
+        pd = (float)i0 * (mx*0.2 - mn) / dim + mn;
+        for (i1 = 0; i1 < dim; i1++) {
+            tc = (float)i1 * (mx - mn) / dim + mn;
+            err = 0;
+            for (j = 0; j < dt->n; j++) {
+                val = pd * exp(-dt->x[j] / tc);
+                err += (dt->y[j] - val) * (dt->y[j] - val);
+            }
+            p[i0 * dim + i1] = sqrt(err/dt->n);
+        }
+    }
+
+    return img;
+}
+
 RecImage *
 metal_global(Num_data *data)
 {
@@ -335,17 +371,12 @@ metal_global(Num_data *data)
     int         dim = 128;
     int         imgSize;
     RecImage    *img;
+    float       min_val;
+    int         min_pos;
+
     float       *p, *pres;
-    float       mn = 0.01;
-    float       mx = 3.0;
-    float       mnPd1 = mn;  // prm[0]
-    float       mxPd1 = mx;   // prm[1]
-    float       mnPd2 = mn;  // prm[2]
-    float       mxPd2 = mx;   // prm[3]
-    float       mnTc1 = mn;  // prm[4]
-    float       mxTc1 = 0.3;   // prm[5]
-    float       mnTc2 = mn;  // prm[6]
-    float       mxTc2 = 0.3;   // prm[7]
+    float       mn = 0.001;
+    float       mx = 20.0;
 
 // Metal
     NumMetalDevice  *device;
@@ -357,7 +388,7 @@ metal_global(Num_data *data)
 //    [NumMetalDevice query];
 
 //    img = [RecImage imageOfType:RECIMAGE_REAL xDim:dim yDim:dim zDim:dim chDim:dim];
-    img = [RecImage imageOfType:RECIMAGE_REAL xDim:dim yDim:dim zDim:2];    // 2 projections
+    img = [RecImage imageOfType:RECIMAGE_REAL xDim:dim yDim:dim zDim:3];    // 3 projections
     p = [img data];
 
     imgSize = dim * dim;      // 2D grid
@@ -381,14 +412,6 @@ metal_global(Num_data *data)
 
 // fill input data
     fPrm = (float *)fBuf.contents;
-    fPrm[0] = mnPd1;
-    fPrm[1] = mxPd1;
-    fPrm[2] = mnPd2;
-    fPrm[3] = mxPd2;
-    fPrm[4] = mnTc1;
-    fPrm[5] = mxTc1;
-    fPrm[6] = mnTc2;
-    fPrm[7] = mxTc2;
     iPrm = (int *)iBuf.contents;
     iPrm[0] = (float)dim;
     iPrm[1] = (float)data->n;
@@ -401,10 +424,30 @@ metal_global(Num_data *data)
     }
 
     // Metal
-    for (i = 0; i < 2; i++) {
+    for (i = 0; i < 3; i++) {
         mode  = i;
         iPrm[2] = mode;
-//        iPrm[3] = batch;
+        switch (mode) {
+        // change range for each mode
+        case 0 :    // pd2 / pd1
+            fPrm[0] = mn; fPrm[1] = mx;    // pd1
+            fPrm[2] = mn; fPrm[3] = mx;    // pd2
+            fPrm[4] = mn; fPrm[5] = mx;    // tc1
+            fPrm[6] = mn; fPrm[7] = mx;    // tc2
+            break;
+        case 1 :    // tc2 / tc1
+            fPrm[0] = mn; fPrm[1] = mx;    // pd1
+            fPrm[2] = mn; fPrm[3] = mx;    // pd2
+            fPrm[4] = mn; fPrm[5] = mx;    // tc1
+            fPrm[6] = mn; fPrm[7] = mx;    // tc2
+            break;
+        case 2 :    // tc2 / pd2
+            fPrm[0] = mn; fPrm[1] = mx;    // pd1
+            fPrm[2] = mn; fPrm[3] = mx;    // pd2
+            fPrm[4] = mn; fPrm[5] = mx;    // tc1
+            fPrm[6] = mn; fPrm[7] = mx;    // tc2
+            break;
+        }
 
 //printf("batch = %d, mode = %d, adr = %d\n", batch, mode, mode * imgSize + batch * bsize * dim);
 //continue;
@@ -420,9 +463,16 @@ metal_global(Num_data *data)
         [device waitUntilCompleted];
         // copy result
         pres = (float *)resultBuf.contents;
+        min_val = 1e10;
+        min_pos = 0;
         for (j = 0; j < imgSize; j++) {
             p[mode * imgSize + j] = pres[j]; // 2d result
+            if (pres[j] < min_val) {
+                min_val = pres[j];
+                min_pos = j;
+            }
         }
+        printf("x/y = %d/%d\n", min_pos%dim, min_pos/dim);
     }
 
     return img;
@@ -444,6 +494,8 @@ test2()
     float       mse, mse0;
     float       (^model_b)(Num_param *prm);
 
+NumMinimization_dbg = 1;
+
 //ndata = 8; // ###
     p_dat = Num_alloc_data(ndata);
     if (0) { // generate
@@ -451,7 +503,7 @@ test2()
         float       pd2 = 2000;
         float       tc1 = 100;
         float       tc2 = 500;
-        float       nz = 10; //10.0;
+        float       nz = 0; //10.0;
         for (i = 0; i < ndata; i++) {
             p_dat->x[i] = tm[i];
             p_dat->y[i] = pd1 * exp(-tm[i] / tc1) + pd2 * exp(-tm[i] / tc2) + Num_nrml(0, nz);
@@ -497,11 +549,11 @@ if (0) {
         printf("%f %f\n", t, a);
     }
     Num_dump_param(p_prm);
-    Num_dump_data(p_dat);
+//    Num_dump_data(p_dat);
+
     Num_free_param(p_prm);
     exit(0);
 }
-
 
 // scale input
     Num_normalize_data(p_dat);
@@ -569,31 +621,30 @@ Num_dump_param(e_prm);
 
      // ===== global search
      if (1) {
-         RecImage *img, *prj;
+         RecImage *img;
      //    img = global(model_b);
-         img = metal_global(e_dat);
-[img saveAsKOImage:@"IMG_biex0"];   // pd1, pd2, tc1, tc2
-exit(0);
-         prj = [img mnpForLoop:[img xLoop]]; // pd1, pd2, tc1
-         prj = [prj mnpForLoop:[prj yLoop]]; // pd1, tc1
-         [prj checkNaN];
-         [prj saveAsKOImage:@"IMG_biex1"];
-         prj = [img mnpForLoop:[img topLoop]];  // pd2, tc1, tc2
-         prj = [prj mnpForLoop:[prj topLoop]];  // tc1, tc2
-         [prj checkNaN];
-         [prj saveAsKOImage:@"IMG_biex2"];
-         exit(0);
+//        printf("input to global\n");
+//        Num_dump_data(e_dat);
+        img = global2(e_dat);
+        [img saveAsKOImage:@"IMG_global_single"];
+        img = metal_global(e_dat);
+        [img saveAsKOImage:@"IMG_global_biex"];   // pd1, pd2, tc1, tc2
      }
 
      // ====== try different initial value
      NumMinimization_dbg = 1;
      if (0) {
-         e_prm->data[0] = 0.5515;
-         e_prm->data[1] = 0.5515;
-         e_prm->data[2] = 0.143;
-         e_prm->data[3] = 0.3514;
+         e_prm->data[0] = 0.5;
+         e_prm->data[1] = 0.5;
+         e_prm->data[2] = 1.1;
+         e_prm->data[3] = 1.1;
      }
- 
+
+    // ====== single exponential ===
+    if (1) {
+        Num_exp_fit(e_prm, e_dat, &mse);
+    }
+        
     // ===== conj gradient
     if (0) {        // try conj gradient for comparison (using same initial guess)
         float       (^model_c)(float x, float *p, float *dy);
